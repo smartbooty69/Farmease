@@ -65,6 +65,10 @@ desktop.ini
 *.swp
 greenhouse_analytics.db
 
+# Generated sensor/training logs
+data/greenhouse_training_data.csv
+data/event_timeline.csv
+
 # ------------------------------
 # ML model/training artifacts
 # ------------------------------

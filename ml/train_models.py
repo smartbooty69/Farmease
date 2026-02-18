@@ -135,6 +135,26 @@ def _mean_std(values: list[float]) -> dict[str, float | None]:
     }
 
 
+def stability_adjusted_regression_loss(metrics: dict[str, Any]) -> float | None:
+    mae_metrics = metrics.get("mae", {})
+    mae_mean = mae_metrics.get("mean")
+    if mae_mean is None:
+        return None
+
+    mae_std = mae_metrics.get("std") or 0.0
+    return float(mae_mean) + (0.25 * float(mae_std))
+
+
+def stability_adjusted_classification_score(metrics: dict[str, Any]) -> float | None:
+    f1_metrics = metrics.get("f1", {})
+    f1_mean = f1_metrics.get("mean")
+    if f1_mean is None:
+        return None
+
+    f1_std = f1_metrics.get("std") or 0.0
+    return float(f1_mean) - (0.10 * float(f1_std))
+
+
 def run_walk_forward_regression(
     pipeline: Pipeline,
     features: pd.DataFrame,
@@ -348,18 +368,22 @@ def fit_best_regressor(
     train_y: pd.Series,
     valid_x: pd.DataFrame,
     valid_y: pd.Series,
+    all_features: pd.DataFrame,
+    all_target: pd.Series,
+    walk_forward_folds: list[tuple[slice, slice]],
     random_state: int,
     device: str,
     model_family: str,
     show_progress: bool,
-) -> tuple[str, Pipeline, dict[str, dict[str, float]], list[str]]:
+) -> tuple[str, Pipeline, dict[str, dict[str, Any]], str, list[str]]:
     candidate_models = build_regression_candidates(random_state=random_state, device=device)
     candidate_models = select_candidate_models(candidate_models, model_family=model_family)
-    scores: dict[str, dict[str, float]] = {}
+    scores: dict[str, dict[str, Any]] = {}
     warnings: list[str] = []
     best_name = ""
     best_pipeline: Pipeline | None = None
-    best_mae = float("inf")
+    best_selection_loss = float("inf")
+    selection_mode = "holdout_mae"
 
     model_items = list(candidate_models.items())
     model_iterator = model_items
@@ -388,17 +412,39 @@ def fit_best_regressor(
         mae_score = float(mean_absolute_error(valid_y, prediction))
         rmse_score = float(np.sqrt(mean_squared_error(valid_y, prediction)))
         r2_value = float(r2_score(valid_y, prediction))
-        scores[model_name] = {"mae": mae_score, "rmse": rmse_score, "r2": r2_value}
 
-        if mae_score < best_mae:
-            best_mae = mae_score
+        metric_entry: dict[str, Any] = {"mae": mae_score, "rmse": rmse_score, "r2": r2_value}
+        model_selection_loss = mae_score
+        model_selection_mode = "holdout_mae"
+
+        if walk_forward_folds:
+            walk_forward = run_walk_forward_regression(
+                pipeline=pipeline,
+                features=all_features,
+                target=all_target,
+                folds=walk_forward_folds,
+            )
+            metric_entry["walk_forward"] = walk_forward.get("metrics", {})
+            metric_entry["walk_forward_folds_run"] = int(walk_forward.get("folds_run", 0))
+
+            if int(walk_forward.get("folds_run", 0)) >= 2:
+                stable_loss = stability_adjusted_regression_loss(walk_forward.get("metrics", {}))
+                if stable_loss is not None:
+                    model_selection_loss = stable_loss
+                    model_selection_mode = "walk_forward_stability"
+
+        scores[model_name] = metric_entry
+
+        if model_selection_loss < best_selection_loss:
+            best_selection_loss = model_selection_loss
+            selection_mode = model_selection_mode
             best_name = model_name
             best_pipeline = pipeline
 
     if best_pipeline is None:
         raise RuntimeError("No regression model could be trained.")
 
-    return best_name, best_pipeline, scores, warnings
+    return best_name, best_pipeline, scores, selection_mode, warnings
 
 
 def fit_best_classifier(
@@ -406,23 +452,27 @@ def fit_best_classifier(
     train_y: pd.Series,
     valid_x: pd.DataFrame,
     valid_y: pd.Series,
+    all_features: pd.DataFrame,
+    all_target: pd.Series,
+    walk_forward_folds: list[tuple[slice, slice]],
     random_state: int,
     device: str,
     model_family: str,
     show_progress: bool,
-) -> tuple[str | None, Pipeline | None, dict[str, dict[str, float]], str | None, list[str]]:
+) -> tuple[str | None, Pipeline | None, dict[str, dict[str, Any]], str | None, str, list[str]]:
     warnings: list[str] = []
     unique_labels = sorted(train_y.dropna().unique().tolist())
     if len(unique_labels) < 2:
         reason = "Skipping relay_light classifier: target has only one class in training split."
-        return None, None, {}, reason, warnings
+        return None, None, {}, reason, "holdout_f1", warnings
 
     candidate_models = build_classification_candidates(random_state=random_state, device=device)
     candidate_models = select_candidate_models(candidate_models, model_family=model_family)
-    scores: dict[str, dict[str, float]] = {}
+    scores: dict[str, dict[str, Any]] = {}
     best_name: str | None = None
     best_pipeline: Pipeline | None = None
-    best_f1 = -1.0
+    best_selection_score = -1.0
+    selection_mode = "holdout_f1"
 
     model_items = list(candidate_models.items())
     model_iterator = model_items
@@ -448,12 +498,14 @@ def fit_best_classifier(
             warnings.append(f"Skipped classification model '{model_name}': {exc}")
             continue
 
-        metric_entry: dict[str, float] = {
+        metric_entry: dict[str, Any] = {
             "accuracy": float(accuracy_score(valid_y, prediction)),
             "precision": float(precision_score(valid_y, prediction, zero_division=0)),
             "recall": float(recall_score(valid_y, prediction, zero_division=0)),
             "f1": float(f1_score(valid_y, prediction, zero_division=0)),
         }
+        model_selection_score = float(metric_entry["f1"])
+        model_selection_mode = "holdout_f1"
 
         if valid_y.nunique(dropna=True) > 1:
             try:
@@ -462,17 +514,34 @@ def fit_best_classifier(
             except Exception:
                 pass
 
+        if walk_forward_folds:
+            walk_forward = run_walk_forward_classification(
+                pipeline=pipeline,
+                features=all_features,
+                target=all_target,
+                folds=walk_forward_folds,
+            )
+            metric_entry["walk_forward"] = walk_forward.get("metrics", {})
+            metric_entry["walk_forward_folds_run"] = int(walk_forward.get("folds_run", 0))
+
+            if int(walk_forward.get("folds_run", 0)) >= 2:
+                stable_score = stability_adjusted_classification_score(walk_forward.get("metrics", {}))
+                if stable_score is not None:
+                    model_selection_score = stable_score
+                    model_selection_mode = "walk_forward_stability"
+
         scores[model_name] = metric_entry
 
-        if metric_entry["f1"] > best_f1:
-            best_f1 = metric_entry["f1"]
+        if model_selection_score > best_selection_score:
+            best_selection_score = model_selection_score
+            selection_mode = model_selection_mode
             best_name = model_name
             best_pipeline = pipeline
 
     if best_pipeline is None:
-        return None, None, {}, "No classification model could be trained.", warnings
+        return None, None, {}, "No classification model could be trained.", "holdout_f1", warnings
 
-    return best_name, best_pipeline, scores, None, warnings
+    return best_name, best_pipeline, scores, None, selection_mode, warnings
 
 
 def train_pipeline(
@@ -528,6 +597,13 @@ def train_pipeline(
         min_class_count=max(1, int(min_relay_class_count)),
     )
 
+    walk_forward_folds = build_walk_forward_folds(
+        total_rows=len(features),
+        n_splits=walk_forward_splits,
+        min_train_rows=max(80, int(len(features) * 0.25)),
+        min_valid_rows=max(20, int(len(features) * 0.08)),
+    )
+
     if strict_relay_quality and not relay_quality_ok:
         issue_text = "; ".join(relay_quality_issues)
         raise ValueError(
@@ -536,11 +612,14 @@ def train_pipeline(
         )
     advance_stage()
 
-    reg_name, reg_pipeline, regression_metrics, regression_warnings = fit_best_regressor(
+    reg_name, reg_pipeline, regression_metrics, regression_selection_mode, regression_warnings = fit_best_regressor(
         train_x=train_x,
         train_y=train_y_light,
         valid_x=valid_x,
         valid_y=valid_y_light,
+        all_features=features,
+        all_target=target_light,
+        walk_forward_folds=walk_forward_folds,
         random_state=random_state,
         device=device,
         model_family=model_family,
@@ -550,27 +629,32 @@ def train_pipeline(
 
     cls_name: str | None
     cls_pipeline: Pipeline | None
-    classification_metrics: dict[str, dict[str, float]]
+    classification_metrics: dict[str, dict[str, Any]]
     skip_reason: str | None
+    classification_selection_mode: str
     classification_warnings: list[str]
 
     if relay_quality_ok:
-        cls_name, cls_pipeline, classification_metrics, skip_reason, classification_warnings = fit_best_classifier(
+        cls_name, cls_pipeline, classification_metrics, skip_reason, classification_selection_mode, classification_warnings = fit_best_classifier(
             train_x=train_x,
             train_y=train_y_relay,
             valid_x=valid_x,
             valid_y=valid_y_relay,
+            all_features=features,
+            all_target=target_relay,
+            walk_forward_folds=walk_forward_folds,
             random_state=random_state,
             device=device,
             model_family=model_family,
             show_progress=show_progress,
         )
     else:
-        cls_name, cls_pipeline, classification_metrics, skip_reason, classification_warnings = (
+        cls_name, cls_pipeline, classification_metrics, skip_reason, classification_selection_mode, classification_warnings = (
             None,
             None,
             {},
             "Skipping relay_light classifier: quality gate failed.",
+            "holdout_f1",
             [],
         )
     advance_stage()
@@ -582,13 +666,6 @@ def train_pipeline(
     feature_columns = list(features.columns)
     with (output_dir / "feature_columns.json").open("w", encoding="utf-8") as feature_file:
         json.dump(feature_columns, feature_file, indent=2)
-
-    walk_forward_folds = build_walk_forward_folds(
-        total_rows=len(features),
-        n_splits=walk_forward_splits,
-        min_train_rows=max(80, int(len(features) * 0.25)),
-        min_valid_rows=max(20, int(len(features) * 0.08)),
-    )
 
     walk_forward_report: dict[str, Any] = {
         "requested_splits": walk_forward_splits,
@@ -626,6 +703,10 @@ def train_pipeline(
             "light_forecast": reg_name,
             "relay_light": cls_name,
         },
+        "model_selection": {
+            "light_forecast": regression_selection_mode,
+            "relay_light": classification_selection_mode,
+        },
         "metrics": {
             "regression": regression_metrics,
             "classification": classification_metrics,
@@ -649,7 +730,7 @@ def train_pipeline(
         },
         "notes": [
             "Validation split is time-ordered to avoid lookahead leakage.",
-            "Best model chosen by MAE for regression and F1 for classification.",
+            "Best model prefers walk-forward stability when >=2 folds run; falls back to holdout MAE/F1.",
         ],
     }
 
