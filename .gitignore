@@ -1,28 +1,78 @@
+# ------------------------------
 # Python cache and bytecode
+# ------------------------------
 __pycache__/
 *.py[cod]
 *$py.class
 
+# ------------------------------
+# Python packaging/build outputs
+# ------------------------------
+build/
+dist/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+
+# ------------------------------
 # Virtual environments
+# ------------------------------
 .venv/
 venv/
+env/
 ENV/
 
+# ------------------------------
 # Environment and local secrets
+# ------------------------------
 .env
 .env.*
 
-# IDE / OS files
+# ------------------------------
+# Test, lint, and type-check caches
+# ------------------------------
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.pyre/
+.tox/
+.nox/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+# ------------------------------
+# Jupyter / notebook artifacts
+# ------------------------------
+.ipynb_checkpoints/
+
+# ------------------------------
+# IDE / editor / OS files
+# ------------------------------
 .vscode/
 .idea/
 .DS_Store
 Thumbs.db
+desktop.ini
 
-# Local databases and logs
-greenhouse_analytics.db
+# ------------------------------
+# Local runtime artifacts
+# ------------------------------
 *.log
+*.tmp
+*.bak
+*.swp
+greenhouse_analytics.db
 
-# Model and runtime generated artifacts
+# ------------------------------
+# ML model/training artifacts
+# ------------------------------
 models/*.joblib
 models/training_report.json
-*.tmp
+
+# ------------------------------
+# Arduino generated binaries
+# ------------------------------
+*.elf
+*.hex
