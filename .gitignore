@@ -1,0 +1,28 @@
+# Python cache and bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# Environment and local secrets
+.env
+.env.*
+
+# IDE / OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Local databases and logs
+greenhouse_analytics.db
+*.log
+
+# Model and runtime generated artifacts
+models/*.joblib
+models/training_report.json
+*.tmp

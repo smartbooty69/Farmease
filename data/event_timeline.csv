@@ -1,0 +1,21 @@
+timestamp,event_type,severity,source,message
+2026-02-19T02:35:32,alert,warning,automation,Dry soil alert at 0 ADC
+2026-02-19T02:36:00,control,info,command,Light OFF
+2026-02-19T02:37:05,control,info,command,Buzzer ON
+2026-02-19T02:38:19,startup,info,system,Startup briefing sent to Telegram
+2026-02-19T02:38:19,alert,warning,automation,Dry soil alert at 0 ADC
+2026-02-19T02:41:20,alert,warning,automation,Dry soil alert at 0 ADC
+2026-02-19T02:42:07,startup,info,system,Startup briefing sent to Telegram
+2026-02-19T02:42:07,sensor,warning,sensor,Soil sensor fault detected (0 ADC)
+2026-02-19T02:45:49,alert,warning,automation,Dry soil alert at 49 ADC
+2026-02-19T02:46:15,alert,critical,automation,Flame sensor safety alert
+2026-02-19T02:46:15,alert,warning,automation,IR motion alert
+2026-02-19T02:46:15,alert,critical,automation,Critical risk alert (95/100)
+2026-02-19T02:48:01,startup,info,system,Startup briefing sent to Telegram
+2026-02-19T02:48:02,sensor,warning,sensor,Soil sensor fault detected (0 ADC)
+2026-02-19T02:49:51,startup,info,system,Startup briefing sent to Telegram
+2026-02-19T02:49:51,sensor,warning,sensor,Soil sensor fault detected (0 ADC)
+2026-02-19T02:50:53,startup,info,system,Startup briefing sent to Telegram
+2026-02-19T02:50:54,sensor,warning,sensor,Soil sensor fault detected (0 ADC)
+2026-02-19T02:52:11,startup,info,system,Startup briefing sent to Telegram
+2026-02-19T02:52:11,sensor,warning,sensor,Soil sensor fault detected (0 ADC)
