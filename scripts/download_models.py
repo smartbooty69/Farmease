@@ -2,6 +2,7 @@
 
 Usage: set `CLOUD_PROVIDER` and `MODEL_BUCKET` environment variables.
 """
+
 import os
 import argparse
 
@@ -21,10 +22,10 @@ def _gcs_download(bucket_name: str, dest_dir: str):
 def _s3_download(bucket_name: str, dest_dir: str):
     import boto3
 
-    s3 = boto3.client('s3')
+    s3 = boto3.client("s3")
     resp = s3.list_objects_v2(Bucket=bucket_name)
-    for obj in resp.get('Contents', []):
-        key = obj['Key']
+    for obj in resp.get("Contents", []):
+        key = obj["Key"]
         dest = os.path.join(dest_dir, key)
         print(f"Downloading s3://{bucket_name}/{key} -> {dest}")
         os.makedirs(os.path.dirname(dest), exist_ok=True)
@@ -32,19 +33,19 @@ def _s3_download(bucket_name: str, dest_dir: str):
 
 
 def main():
-    provider = os.environ.get('CLOUD_PROVIDER')
-    bucket = os.environ.get('MODEL_BUCKET')
-    dest = os.environ.get('MODEL_DEST', 'models')
+    provider = os.environ.get("CLOUD_PROVIDER")
+    bucket = os.environ.get("MODEL_BUCKET")
+    dest = os.environ.get("MODEL_DEST", "models")
     if not provider or not bucket:
-        raise RuntimeError('Set CLOUD_PROVIDER and MODEL_BUCKET environment variables')
+        raise RuntimeError("Set CLOUD_PROVIDER and MODEL_BUCKET environment variables")
 
-    if provider.lower() == 'gcs':
+    if provider.lower() == "gcs":
         _gcs_download(bucket, dest)
-    elif provider.lower() == 's3':
+    elif provider.lower() == "s3":
         _s3_download(bucket, dest)
     else:
-        raise RuntimeError('Unsupported CLOUD_PROVIDER; use gcs or s3')
+        raise RuntimeError("Unsupported CLOUD_PROVIDER; use gcs or s3")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

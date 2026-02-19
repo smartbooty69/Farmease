@@ -4,6 +4,7 @@ This file provides safe, opt-in helpers. It does NOT require cloud libraries
 unless you use the GCP functions below. Use environment variables in CI
 to avoid storing secrets in the repo.
 """
+
 from typing import Optional
 import os
 
@@ -39,9 +40,13 @@ def push_secret_to_gcp(secret_id: str, payload: str, project: str) -> None:
     try:
         client.get_secret(request={"name": name})
     except Exception:
-        client.create_secret(request={"parent": parent, "secret_id": secret_id, "secret": {}})
+        client.create_secret(
+            request={"parent": parent, "secret_id": secret_id, "secret": {}}
+        )
     # add version
-    client.add_secret_version(request={"parent": name, "payload": {"data": payload.encode('utf-8')}})
+    client.add_secret_version(
+        request={"parent": name, "payload": {"data": payload.encode("utf-8")}}
+    )
 
 
 def access_secret_from_gcp(secret_id: str, project: str) -> Optional[str]:
@@ -53,4 +58,4 @@ def access_secret_from_gcp(secret_id: str, project: str) -> Optional[str]:
     client = secretmanager.SecretManagerServiceClient()
     name = f"projects/{project}/secrets/{secret_id}/versions/latest"
     resp = client.access_secret_version(request={"name": name})
-    return resp.payload.data.decode('utf-8')
+    return resp.payload.data.decode("utf-8")
