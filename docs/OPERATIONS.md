@@ -46,11 +46,53 @@ python -m py_compile dashboard.py telegram_notifier.py
 python -m unittest discover -s tests -p "test_*.py"
 ```
 
+Generate event evidence summary:
+
+```powershell
+python scripts/generate_event_evidence.py
+```
+
+## Event-day rehearsal (recommended)
+
+Run the complete pre-event sequence in one command:
+
+```powershell
+.\scripts\event_rehearsal.ps1
+```
+
+This sequence executes:
+1. Syntax checks (`py_compile`)
+2. Unit tests
+3. Retraining + prediction smoke check
+4. Event evidence generation (`docs/EVENT_EVIDENCE.md`)
+
+For 4-8 hour stability proof, use:
+- `docs/EVENT_RELIABILITY_LOG_TEMPLATE.md`
+
+## Optional cloud-sync worker (future path)
+
+Cloud sync is optional and does not replace local control.
+
+Start demo cloud ingest API (optional):
+
+```powershell
+.\scripts\run_cloud_api.ps1
+```
+
+```powershell
+.\scripts\run_cloud_sync.ps1
+```
+
+Setup notes:
+- `docs/CLOUD_SYNC_PREP.md`
+- `docs/CLOUD_BACKEND_SETUP.md`
+
 Review generated artifacts:
 - `models/training_report.json`
 - `models/light_forecast_model.joblib`
 - `models/relay_light_model.joblib` (if quality gate passes)
 - `models/feature_columns.json`
+- `docs/EVENT_EVIDENCE.md`
 
 ## Operational notes
 

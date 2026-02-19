@@ -1,3 +1,5 @@
+# Secrets should not be committed
+.secrets/
 # ------------------------------
 # Python cache and bytecode
 # ------------------------------

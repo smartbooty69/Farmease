@@ -61,6 +61,21 @@ Telegram setup:
 Operations runbook:
 - See `docs/OPERATIONS.md`
 
+Event prep assets:
+- `docs/EVENT_READY_PACK.md` (single checklist for event readiness)
+- `docs/EVENT_EVIDENCE.md` (generated evidence summary)
+- `docs/EVENT_DEMO_SCRIPT.md` (3-5 minute demo flow)
+- `docs/EVENT_ARCHITECTURE.md` (architecture slide diagram)
+- `docs/EVENT_FALLBACK_PLAN.md` (internet/Telegram failure plan)
+- `docs/EVENT_ONE_PAGER.md` (problem, impact, BOM, roadmap)
+- `docs/EVENT_RELIABILITY_LOG_TEMPLATE.md` (4-8 hour reliability checklist)
+
+Optional cloud-sync prep:
+- `docs/CLOUD_SYNC_PREP.md`
+- `docs/CLOUD_BACKEND_SETUP.md`
+- `.\scripts\run_cloud_sync.ps1`
+- `.\scripts\run_cloud_api.ps1`
+
 ## Validation commands
 
 Local sanity checks:
@@ -68,6 +83,24 @@ Local sanity checks:
 ```powershell
 python -m py_compile dashboard.py telegram_notifier.py
 python -m unittest discover -s tests -p "test_*.py"
+```
+
+Generate event evidence from current logs/models:
+
+```powershell
+python scripts/generate_event_evidence.py
+```
+
+Run full event rehearsal workflow:
+
+```powershell
+.\scripts\event_rehearsal.ps1
+```
+
+Run optional cloud sync worker (future path):
+
+```powershell
+.\scripts\run_cloud_sync.ps1
 ```
 
 CI runs equivalent checks on each push/PR via:
