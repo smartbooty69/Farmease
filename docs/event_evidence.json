@@ -1,0 +1,74 @@
+{
+  "generated_at": "2026-02-19T09:42:11",
+  "source_files": {
+    "training_data": "data\\greenhouse_training_data.csv",
+    "event_log": "data\\event_timeline.csv",
+    "training_report": "models\\training_report.json"
+  },
+  "sensor_log": {
+    "rows_total": 2138,
+    "rows_complete": 2102,
+    "start_time": "2026-02-19T01:11:22",
+    "end_time": "2026-02-19T03:10:36",
+    "duration_minutes": 119.23,
+    "median_sampling_seconds": 3.0,
+    "pump_on_ratio": 0.00799623706491063,
+    "irrigation_runtime_avoided_pct": 99.20037629350894,
+    "light_on_ratio": 0.1665098777046096
+  },
+  "event_log": {
+    "events_total": 21,
+    "event_type_counts": {
+      "alert": 7,
+      "control": 2,
+      "startup": 6,
+      "sensor": 6
+    },
+    "severity_counts": {
+      "warning": 11,
+      "info": 8,
+      "critical": 2
+    },
+    "source_counts": {
+      "automation": 7,
+      "command": 2,
+      "system": 6,
+      "sensor": 6
+    },
+    "startup_events": 6,
+    "sensor_fault_events": 6,
+    "control_events": 2,
+    "critical_alerts": 2
+  },
+  "model_metrics": {
+    "rows_total": 2138,
+    "rows_used": 2126,
+    "regression": {
+      "mae": 0.07889917288587686,
+      "rmse": 0.2415158309461841,
+      "r2": -6.299651387475253
+    },
+    "classification": {
+      "accuracy": null,
+      "precision": null,
+      "recall": null,
+      "f1": null,
+      "roc_auc": null
+    },
+    "quality_gate": {
+      "passed": false,
+      "min_class_count": 10,
+      "train_counts": {
+        "0.0": 1346,
+        "1.0": 354
+      },
+      "valid_counts": {
+        "0.0": 426
+      },
+      "issues": [
+        "validation split has a single class",
+        "validation class 1 count too low (0 < 10)"
+      ]
+    }
+  }
+}
