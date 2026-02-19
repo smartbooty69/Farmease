@@ -59,6 +59,7 @@ TELEGRAM_TEMP_FAULT_MAX_C = float(os.getenv("TELEGRAM_TEMP_FAULT_MAX_C", "60"))
 TELEGRAM_ALERT_SOIL_MARGIN = float(os.getenv("TELEGRAM_ALERT_SOIL_MARGIN", "0"))
 TELEGRAM_SOIL_FAULT_ADC_MAX = int(os.getenv("TELEGRAM_SOIL_FAULT_ADC_MAX", "5"))
 TELEGRAM_COMMANDS_ENABLED = env_bool("TELEGRAM_COMMANDS", default=True)
+TELEGRAM_MANUAL_HOLD_SECONDS = max(0, int(os.getenv("TELEGRAM_MANUAL_HOLD_SECONDS", "900")))
 TELEGRAM_FLAME_ACTIVE_VALUE = int(os.getenv("TELEGRAM_FLAME_ACTIVE_VALUE", "0"))
 TELEGRAM_IR_ACTIVE_VALUE = int(os.getenv("TELEGRAM_IR_ACTIVE_VALUE", "0"))
 TELEGRAM_STARTUP_BRIEFING = env_bool("TELEGRAM_STARTUP_BRIEFING", default=True)
@@ -109,6 +110,10 @@ telegram_notifier = TelegramNotifier(
     enabled=TELEGRAM_ALERTS_ENABLED,
     default_cooldown_seconds=TELEGRAM_ALERT_COOLDOWN,
 )
+
+telegram_manual_override_lock = threading.Lock()
+telegram_manual_override_active = False
+telegram_manual_override_until = None
 
 try:
     ser = serial.Serial(PORT, BAUD, timeout=1)
@@ -909,6 +914,45 @@ def send_cmd(cmd):
         pass
 
 
+def clear_telegram_manual_override():
+    global telegram_manual_override_active, telegram_manual_override_until
+    with telegram_manual_override_lock:
+        telegram_manual_override_active = False
+        telegram_manual_override_until = None
+
+
+def start_telegram_manual_override():
+    global telegram_manual_override_active, telegram_manual_override_until
+    send_cmd("a")
+    with telegram_manual_override_lock:
+        telegram_manual_override_active = True
+        if TELEGRAM_MANUAL_HOLD_SECONDS > 0:
+            telegram_manual_override_until = time.time() + TELEGRAM_MANUAL_HOLD_SECONDS
+        else:
+            telegram_manual_override_until = None
+
+
+def get_telegram_manual_override_remaining_seconds():
+    with telegram_manual_override_lock:
+        if not telegram_manual_override_active:
+            return 0
+        if telegram_manual_override_until is None:
+            return None
+        return max(0, int(telegram_manual_override_until - time.time()))
+
+
+def maybe_resume_automation_after_manual_override():
+    should_resume = False
+    with telegram_manual_override_lock:
+        if telegram_manual_override_active and telegram_manual_override_until is not None:
+            if time.time() >= telegram_manual_override_until:
+                should_resume = True
+    if should_resume:
+        send_cmd("A")
+        clear_telegram_manual_override()
+        log_event("control", "Telegram manual hold expired; automation resumed", severity="info", source="telegram")
+
+
 def parse_telegram_command(text):
     raw = (text or "").strip()
     if not raw:
@@ -918,7 +962,7 @@ def parse_telegram_command(text):
     if first_token.startswith("/") and "@" in first_token:
         first_token = first_token.split("@", 1)[0]
 
-    command_map = {
+    relay_command_map = {
         "/fan_on": ("F", "✅ Fan ON command sent"),
         "/fan_off": ("f", "✅ Fan OFF command sent"),
         "/pump_on": ("P", "✅ Pump ON command sent"),
@@ -927,6 +971,9 @@ def parse_telegram_command(text):
         "/light_off": ("l", "✅ Light OFF command sent"),
         "/buzzer_on": ("B", "✅ Buzzer ON command sent"),
         "/buzzer_off": ("b", "✅ Buzzer OFF command sent"),
+    }
+
+    automation_command_map = {
         "/automation_on": ("A", "✅ Automation ON command sent"),
         "/automation_off": ("a", "✅ Automation OFF command sent"),
     }
@@ -948,14 +995,29 @@ def parse_telegram_command(text):
         return build_telegram_history_text(limit=8), None
 
     if first_token == "/all_off":
+        start_telegram_manual_override()
         for relay_cmd in ("f", "p", "l", "b"):
             send_cmd(relay_cmd)
-        return "✅ All relays OFF command sent", None
+        remaining = get_telegram_manual_override_remaining_seconds()
+        if remaining is None:
+            return "✅ All relays OFF command sent (manual override active until /automation_on)", None
+        return f"✅ All relays OFF command sent (manual override for {remaining}s)", None
 
-    command_pair = command_map.get(first_token)
-    if command_pair:
-        serial_cmd, reply_text = command_pair
+    relay_command_pair = relay_command_map.get(first_token)
+    if relay_command_pair:
+        start_telegram_manual_override()
+        serial_cmd, reply_text = relay_command_pair
         send_cmd(serial_cmd)
+        remaining = get_telegram_manual_override_remaining_seconds()
+        if remaining is None:
+            return f"{reply_text} (manual override active until /automation_on)", None
+        return f"{reply_text} (manual override for {remaining}s)", None
+
+    automation_command_pair = automation_command_map.get(first_token)
+    if automation_command_pair:
+        serial_cmd, reply_text = automation_command_pair
+        send_cmd(serial_cmd)
+        clear_telegram_manual_override()
         return reply_text, None
 
     return "Unknown command. Use /help", None
@@ -1133,6 +1195,7 @@ def poll_telegram_commands():
     next_offset = None
     while True:
         try:
+            maybe_resume_automation_after_manual_override()
             ok, updates, _ = telegram_notifier.get_updates(offset=next_offset, timeout_seconds=20)
             if not ok:
                 time.sleep(3)
