@@ -119,7 +119,9 @@ def summarize_sensor_log(rows: list[dict[str, str]]) -> SensorLogSummary:
 
     light_on_ratio = None
     if light_values:
-        light_on_ratio = sum(1 for value in light_values if value == 1) / len(light_values)
+        light_on_ratio = sum(1 for value in light_values if value == 1) / len(
+            light_values
+        )
 
     return SensorLogSummary(
         rows_total=len(rows),
@@ -177,11 +179,15 @@ def format_float(value: float | None, digits: int = 2) -> str:
     return f"{value:.{digits}f}"
 
 
-def write_outputs(sensor: SensorLogSummary, events: EventLogSummary, report: dict[str, Any]) -> None:
+def write_outputs(
+    sensor: SensorLogSummary, events: EventLogSummary, report: dict[str, Any]
+) -> None:
     DOCS_DIR.mkdir(parents=True, exist_ok=True)
 
     regression = report.get("metrics", {}).get("regression", {}).get("xgboost", {})
-    classification = report.get("metrics", {}).get("classification", {}).get("xgboost", {})
+    classification = (
+        report.get("metrics", {}).get("classification", {}).get("xgboost", {})
+    )
 
     summary_json: dict[str, Any] = {
         "generated_at": datetime.now().isoformat(timespec="seconds"),

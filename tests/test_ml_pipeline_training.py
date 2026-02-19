@@ -16,7 +16,11 @@ class MlPipelineTrainingTests(unittest.TestCase):
     def test_prepare_dataframe_sorts_deduplicates_and_coerces(self):
         raw = pd.DataFrame(
             {
-                "timestamp": ["2026-01-01 00:00:02", "2026-01-01 00:00:01", "2026-01-01 00:00:01"],
+                "timestamp": [
+                    "2026-01-01 00:00:02",
+                    "2026-01-01 00:00:01",
+                    "2026-01-01 00:00:01",
+                ],
                 "temp_c": ["29.5", "bad", "30.0"],
                 "relay_light": [2, 1, 0],
             }
@@ -70,7 +74,9 @@ class MlPipelineTrainingTests(unittest.TestCase):
         self.assertTrue(pd.isna(aligned.iloc[0]["c"]))
 
     def test_build_walk_forward_folds_returns_expected_count(self):
-        folds = build_walk_forward_folds(total_rows=220, n_splits=4, min_train_rows=80, min_valid_rows=20)
+        folds = build_walk_forward_folds(
+            total_rows=220, n_splits=4, min_train_rows=80, min_valid_rows=20
+        )
 
         self.assertEqual(len(folds), 4)
         first_train, first_valid = folds[0]
@@ -82,15 +88,21 @@ class MlPipelineTrainingTests(unittest.TestCase):
         train_y = pd.Series([0] * 12 + [1] * 3)
         valid_y = pd.Series([0] * 8 + [1] * 1)
 
-        passed, issues, summary = evaluate_relay_quality_gate(train_y, valid_y, min_class_count=5)
+        passed, issues, summary = evaluate_relay_quality_gate(
+            train_y, valid_y, min_class_count=5
+        )
 
         self.assertFalse(passed)
         self.assertGreaterEqual(len(issues), 1)
         self.assertFalse(summary["passed"])
 
     def test_stability_adjusted_scores(self):
-        reg_loss = stability_adjusted_regression_loss({"mae": {"mean": 10.0, "std": 2.0}})
-        cls_score = stability_adjusted_classification_score({"f1": {"mean": 0.8, "std": 0.1}})
+        reg_loss = stability_adjusted_regression_loss(
+            {"mae": {"mean": 10.0, "std": 2.0}}
+        )
+        cls_score = stability_adjusted_classification_score(
+            {"f1": {"mean": 0.8, "std": 0.1}}
+        )
 
         self.assertAlmostEqual(reg_loss, 10.5)
         self.assertAlmostEqual(cls_score, 0.79)

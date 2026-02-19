@@ -79,7 +79,7 @@ TRAINING_COLUMNS = [
     "automation_on",
     "threshold_temp_on",
     "threshold_soil_dry",
-    "threshold_light_lux"
+    "threshold_light_lux",
 ]
 
 training_state = {
@@ -93,7 +93,7 @@ training_state = {
     "relay_pump": None,
     "relay_light": None,
     "relay_buzzer": None,
-    "automation_on": None
+    "automation_on": None,
 }
 
 event_history = deque(maxlen=120)
@@ -125,6 +125,7 @@ except serial.SerialException as e:
 except Exception as e:
     print(f"❌ Unexpected error: {e}")
     exit()
+
 
 def ensure_training_file():
     os.makedirs(DATA_DIR, exist_ok=True)
@@ -167,6 +168,7 @@ def log_event(event_type, message, severity="info", source="system"):
     except Exception:
         pass
 
+
 def get_logged_row_count():
     try:
         with open(TRAINING_DATA_FILE, "r", encoding="utf-8") as f:
@@ -174,9 +176,11 @@ def get_logged_row_count():
     except Exception:
         return 0
 
+
 def parse_number(text):
     match = re.search(r"-?\d+(?:\.\d+)?", text)
     return float(match.group(0)) if match else None
+
 
 def parse_binary_state(text):
     value = text.strip().lower()
@@ -188,13 +192,16 @@ def parse_binary_state(text):
         return 0
     return None
 
+
 def update_training_state(key, value):
     if value is not None:
         training_state[key] = value
 
+
 def get_slider_value(name, default):
     slider = globals().get(name)
     return int(slider.get()) if slider else default
+
 
 def get_training_row():
     row = {
@@ -212,18 +219,26 @@ def get_training_row():
         "automation_on": training_state["automation_on"],
         "threshold_temp_on": get_slider_value("temp_slider", 28),
         "threshold_soil_dry": get_slider_value("soil_slider", 1800),
-        "threshold_light_lux": get_slider_value("light_slider", 5)
+        "threshold_light_lux": get_slider_value("light_slider", 5),
     }
     return row
+
 
 def update_logger_counter():
     if "logger_badge" in globals():
         logger_badge.config(text=f"Rows saved: {logged_rows}")
 
     if "progress_var" in globals() and "progress_label" in globals():
-        percent = min((logged_rows / MODEL_READY_ROWS) * 100.0, 100.0) if MODEL_READY_ROWS > 0 else 0
+        percent = (
+            min((logged_rows / MODEL_READY_ROWS) * 100.0, 100.0)
+            if MODEL_READY_ROWS > 0
+            else 0
+        )
         progress_var.set(percent)
-        progress_label.config(text=f"Training data progress: {logged_rows}/{MODEL_READY_ROWS} rows ({percent:.1f}%)")
+        progress_label.config(
+            text=f"Training data progress: {logged_rows}/{MODEL_READY_ROWS} rows ({percent:.1f}%)"
+        )
+
 
 def maybe_log_training_row(force=False):
     global last_log_time, logged_rows
@@ -258,7 +273,12 @@ def maybe_send_telegram_alerts():
             cooldown_seconds=600,
         )
         if sent:
-            log_event("sensor", f"Temperature sensor fault detected ({temp_value:.2f} °C)", severity="warning", source="sensor")
+            log_event(
+                "sensor",
+                f"Temperature sensor fault detected ({temp_value:.2f} °C)",
+                severity="warning",
+                source="sensor",
+            )
     elif temp_value is not None and temp_value >= temp_threshold:
         sent = telegram_notifier.send_with_cooldown(
             key="high_temp",
@@ -269,7 +289,12 @@ def maybe_send_telegram_alerts():
             ),
         )
         if sent:
-            log_event("alert", f"High temperature alert at {temp_value:.2f} °C", severity="warning", source="automation")
+            log_event(
+                "alert",
+                f"High temperature alert at {temp_value:.2f} °C",
+                severity="warning",
+                source="automation",
+            )
 
     soil_value = training_state.get("soil_adc")
     soil_threshold = get_slider_value("soil_slider", 1800) - TELEGRAM_ALERT_SOIL_MARGIN
@@ -284,7 +309,12 @@ def maybe_send_telegram_alerts():
             cooldown_seconds=600,
         )
         if sent:
-            log_event("sensor", f"Soil sensor fault detected ({soil_value:.0f} ADC)", severity="warning", source="sensor")
+            log_event(
+                "sensor",
+                f"Soil sensor fault detected ({soil_value:.0f} ADC)",
+                severity="warning",
+                source="sensor",
+            )
     elif soil_value is not None and soil_value <= soil_threshold:
         sent = telegram_notifier.send_with_cooldown(
             key="dry_soil",
@@ -295,7 +325,12 @@ def maybe_send_telegram_alerts():
             ),
         )
         if sent:
-            log_event("alert", f"Dry soil alert at {soil_value:.0f} ADC", severity="warning", source="automation")
+            log_event(
+                "alert",
+                f"Dry soil alert at {soil_value:.0f} ADC",
+                severity="warning",
+                source="automation",
+            )
 
     flame_value = training_state.get("flame_detected")
     if flame_value is not None and int(flame_value) == TELEGRAM_FLAME_ACTIVE_VALUE:
@@ -305,7 +340,12 @@ def maybe_send_telegram_alerts():
             cooldown_seconds=60,
         )
         if sent:
-            log_event("alert", "Flame sensor safety alert", severity="critical", source="automation")
+            log_event(
+                "alert",
+                "Flame sensor safety alert",
+                severity="critical",
+                source="automation",
+            )
 
     motion_value = training_state.get("ir_detected")
     if motion_value is not None and int(motion_value) == TELEGRAM_IR_ACTIVE_VALUE:
@@ -315,7 +355,9 @@ def maybe_send_telegram_alerts():
             cooldown_seconds=120,
         )
         if sent:
-            log_event("alert", "IR motion alert", severity="warning", source="automation")
+            log_event(
+                "alert", "IR motion alert", severity="warning", source="automation"
+            )
 
     risk = compute_risk_snapshot()
     if risk["score"] >= 80:
@@ -329,7 +371,12 @@ def maybe_send_telegram_alerts():
             cooldown_seconds=90,
         )
         if sent:
-            log_event("alert", f"Critical risk alert ({risk['score']}/100)", severity="critical", source="automation")
+            log_event(
+                "alert",
+                f"Critical risk alert ({risk['score']}/100)",
+                severity="critical",
+                source="automation",
+            )
 
 
 def format_binary_state(value):
@@ -352,7 +399,9 @@ def is_temp_sensor_fault(temp_value):
         return False
     try:
         value = float(temp_value)
-        return value <= float(TELEGRAM_TEMP_FAULT_MIN_C) or value >= float(TELEGRAM_TEMP_FAULT_MAX_C)
+        return value <= float(TELEGRAM_TEMP_FAULT_MIN_C) or value >= float(
+            TELEGRAM_TEMP_FAULT_MAX_C
+        )
     except Exception:
         return True
 
@@ -412,13 +461,23 @@ def compute_risk_snapshot():
     if any("temperature" in item for item in reasons):
         advice.append("Increase cooling/ventilation and monitor humidity drift")
     if any("temperature sensor fault" in item for item in reasons):
-        advice = [item for item in advice if "cooling" not in item.lower() and "ventilation" not in item.lower()]
-        advice.append("Check DHT22 wiring/power; high-temperature automation is currently ignored")
+        advice = [
+            item
+            for item in advice
+            if "cooling" not in item.lower() and "ventilation" not in item.lower()
+        ]
+        advice.append(
+            "Check DHT22 wiring/power; high-temperature automation is currently ignored"
+        )
     if any("soil" in item for item in reasons):
-        advice.append("Start short irrigation cycle and re-check soil after 2-3 minutes")
+        advice.append(
+            "Start short irrigation cycle and re-check soil after 2-3 minutes"
+        )
     if any("soil sensor fault" in item for item in reasons):
         advice = [item for item in advice if "irrigation" not in item.lower()]
-        advice.append("Check soil sensor wiring/probe; dry-soil automation is currently ignored")
+        advice.append(
+            "Check soil sensor wiring/probe; dry-soil automation is currently ignored"
+        )
     if not advice:
         advice.append("System stable. Keep monitoring.")
 
@@ -443,7 +502,11 @@ def build_telegram_status_text():
         temp_text = f"SENSOR FAULT ({temp_value:.2f} °C)"
     else:
         temp_text = f"{temp_value:.2f} °C"
-    humidity_text = "--" if training_state.get("humidity_pct") is None else f"{training_state['humidity_pct']:.2f} %"
+    humidity_text = (
+        "--"
+        if training_state.get("humidity_pct") is None
+        else f"{training_state['humidity_pct']:.2f} %"
+    )
     soil_value = training_state.get("soil_adc")
     if soil_value is None:
         soil_text = "--"
@@ -451,7 +514,11 @@ def build_telegram_status_text():
         soil_text = f"SENSOR FAULT ({soil_value:.0f} ADC)"
     else:
         soil_text = f"{soil_value:.0f} ADC"
-    light_text = "--" if training_state.get("light_lux") is None else f"{training_state['light_lux']:.2f} lux"
+    light_text = (
+        "--"
+        if training_state.get("light_lux") is None
+        else f"{training_state['light_lux']:.2f} lux"
+    )
     risk = compute_risk_snapshot()
 
     return (
@@ -488,7 +555,7 @@ def build_telegram_history_text(limit=8):
     if not event_history:
         return "🗂 Event History\nNo events captured yet in this run."
 
-    recent = list(event_history)[-max(1, int(limit)):]
+    recent = list(event_history)[-max(1, int(limit)) :]
     lines = []
     for event in recent:
         lines.append(
@@ -499,7 +566,9 @@ def build_telegram_history_text(limit=8):
 
 def build_dashboard_advice_text():
     risk = compute_risk_snapshot()
-    top_advice = risk["advice"][0] if risk["advice"] else "System stable. Keep monitoring."
+    top_advice = (
+        risk["advice"][0] if risk["advice"] else "System stable. Keep monitoring."
+    )
     return f"AI Advice ({risk['level']}): {top_advice}"
 
 
@@ -514,6 +583,7 @@ def get_model_status_text():
 
     try:
         import json
+
         with open(TRAINING_REPORT_FILE, "r", encoding="utf-8") as f:
             report = json.load(f)
 
@@ -545,7 +615,12 @@ def send_startup_briefing():
 
     ok, _ = telegram_notifier.send_message(briefing)
     if ok:
-        log_event("startup", "Startup briefing sent to Telegram", severity="info", source="system")
+        log_event(
+            "startup",
+            "Startup briefing sent to Telegram",
+            severity="info",
+            source="system",
+        )
 
 
 def build_telegram_help_text():
@@ -582,6 +657,7 @@ def build_telegram_keyboard():
         "one_time_keyboard": False,
     }
 
+
 ensure_training_file()
 ensure_event_log_file()
 logged_rows = get_logged_row_count()
@@ -601,7 +677,7 @@ COLORS = {
     "warning": "#ef6c00",
     "danger": "#c62828",
     "text": "#1f2937",
-    "muted": "#64748b"
+    "muted": "#64748b",
 }
 
 root.configure(bg=COLORS["bg"])
@@ -614,7 +690,7 @@ style.configure(
     background=COLORS["accent_alt"],
     bordercolor="#dbe5ef",
     lightcolor=COLORS["accent_alt"],
-    darkcolor=COLORS["accent_alt"]
+    darkcolor=COLORS["accent_alt"],
 )
 
 FONT_TITLE = ("Segoe UI", 20, "bold")
@@ -623,6 +699,7 @@ FONT_LABEL = ("Segoe UI", 11, "bold")
 FONT_VALUE = ("Segoe UI", 12)
 FONT_VALUE_BOLD = ("Segoe UI", 12, "bold")
 FONT_BUTTON = ("Segoe UI", 10, "bold")
+
 
 def make_card(parent, title):
     frame = tk.LabelFrame(
@@ -634,9 +711,10 @@ def make_card(parent, title):
         padx=14,
         pady=12,
         bd=1,
-        relief="groove"
+        relief="groove",
     )
     return frame
+
 
 root.grid_columnconfigure(0, weight=1)
 root.grid_rowconfigure(1, weight=1)
@@ -654,7 +732,7 @@ tk.Label(
     text="🌿 Smart Greenhouse Dashboard",
     font=FONT_TITLE,
     bg=COLORS["bg"],
-    fg=COLORS["text"]
+    fg=COLORS["text"],
 ).grid(row=0, column=0, sticky="w")
 
 tk.Label(
@@ -662,7 +740,7 @@ tk.Label(
     text="Live monitoring and manual automation controls",
     font=FONT_SUBTITLE,
     bg=COLORS["bg"],
-    fg=COLORS["muted"]
+    fg=COLORS["muted"],
 ).grid(row=1, column=0, sticky="w", pady=(2, 0))
 
 connection_badge = tk.Label(
@@ -672,7 +750,7 @@ connection_badge = tk.Label(
     bg="#e8f5e9",
     fg=COLORS["accent"],
     padx=12,
-    pady=7
+    pady=7,
 )
 connection_badge.grid(row=0, column=1, rowspan=2, sticky="e")
 
@@ -683,7 +761,7 @@ logger_badge = tk.Label(
     bg="#ede7f6",
     fg="#5e35b1",
     padx=12,
-    pady=7
+    pady=7,
 )
 logger_badge.grid(row=2, column=1, sticky="e", pady=(6, 0))
 
@@ -694,7 +772,7 @@ telegram_status_label = tk.Label(
     bg="#e8f5e9" if telegram_notifier.is_configured() else "#ffebee",
     fg=COLORS["accent"] if telegram_notifier.is_configured() else COLORS["danger"],
     padx=12,
-    pady=7
+    pady=7,
 )
 telegram_status_label.grid(row=3, column=1, sticky="e", pady=(6, 0))
 
@@ -708,7 +786,7 @@ progress_label = tk.Label(
     font=("Segoe UI", 9, "bold"),
     bg=COLORS["bg"],
     fg=COLORS["muted"],
-    anchor="w"
+    anchor="w",
 )
 progress_label.grid(row=0, column=0, sticky="w")
 
@@ -719,7 +797,7 @@ progress_bar = ttk.Progressbar(
     mode="determinate",
     maximum=100,
     variable=progress_var,
-    style="Training.Horizontal.TProgressbar"
+    style="Training.Horizontal.TProgressbar",
 )
 progress_bar.grid(row=1, column=0, sticky="ew", pady=(4, 0), ipady=4)
 
@@ -766,14 +844,14 @@ sensor_frame.grid_columnconfigure(1, weight=1)
 
 data_labels = {}
 sensor_vars = {}
-sensors = ["Temp","Humidity","Soil","Lux","Flame","IR"]
+sensors = ["Temp", "Humidity", "Soil", "Lux", "Flame", "IR"]
 sense_emoji = {
     "Temp": "🌡",
     "Humidity": "💧",
     "Soil": "🌱",
     "Lux": "💡",
     "Flame": "🔥",
-    "IR": "👀"
+    "IR": "👀",
 }
 
 for i, sensor in enumerate(sensors):
@@ -782,7 +860,7 @@ for i, sensor in enumerate(sensors):
         text=f"{sense_emoji[sensor]} {sensor}",
         font=FONT_LABEL,
         bg=COLORS["panel"],
-        fg=COLORS["text"]
+        fg=COLORS["text"],
     ).grid(row=i, column=0, sticky="w", padx=4, pady=7)
 
     lbl = tk.Label(
@@ -791,7 +869,7 @@ for i, sensor in enumerate(sensors):
         font=FONT_VALUE_BOLD,
         bg=COLORS["panel"],
         fg=COLORS["accent_alt"],
-        anchor="w"
+        anchor="w",
     )
     lbl.grid(row=i, column=1, sticky="w")
     data_labels[sensor] = lbl
@@ -808,7 +886,7 @@ for i, sensor in enumerate(sensors):
         selectcolor="#e6f4ea",
         highlightthickness=0,
         bd=0,
-        cursor="hand2"
+        cursor="hand2",
     )
     chk.grid(row=i, column=2, padx=(8, 0), sticky="e")
     sensor_vars[sensor] = var
@@ -817,7 +895,8 @@ for i, sensor in enumerate(sensors):
     def callback(s=sensor, v=var):
         val = 1 if v.get() else 0
         send_cmd(f"X{s[0]}{val}\n")
-    var.trace_add('write', lambda *args, s=sensor, v=var: callback(s, v))
+
+    var.trace_add("write", lambda *args, s=sensor, v=var: callback(s, v))
 
 # ---------- RELAY FRAME ----------
 relay_frame = make_card(left_col, "Relay States")
@@ -828,11 +907,7 @@ relay_labels = {}
 relays = ["Fan", "Pump", "Light", "Buzzer"]
 for i, relay in enumerate(relays):
     tk.Label(
-        relay_frame,
-        text=relay,
-        font=FONT_LABEL,
-        bg=COLORS["panel"],
-        fg=COLORS["text"]
+        relay_frame, text=relay, font=FONT_LABEL, bg=COLORS["panel"], fg=COLORS["text"]
     ).grid(row=i, column=0, sticky="w", padx=4, pady=8)
 
     lbl = tk.Label(
@@ -842,7 +917,7 @@ for i, relay in enumerate(relays):
         fg=COLORS["danger"],
         bg=COLORS["panel_soft"],
         padx=10,
-        pady=3
+        pady=3,
     )
     lbl.grid(row=i, column=1, sticky="w")
     relay_labels[relay] = lbl
@@ -859,13 +934,15 @@ automation_label = tk.Label(
     text="Automation: ON",
     font=FONT_VALUE_BOLD,
     fg=COLORS["accent"],
-    bg=COLORS["panel"]
+    bg=COLORS["panel"],
 )
 automation_label.grid(row=0, column=0, sticky="w")
 
+
 def toggle_automation():
     global automation_on
-    send_cmd('A' if not automation_on else 'a')
+    send_cmd("A" if not automation_on else "a")
+
 
 tk.Button(
     automation_frame,
@@ -878,7 +955,7 @@ tk.Button(
     activebackground="#f57c00",
     activeforeground="white",
     relief="flat",
-    cursor="hand2"
+    cursor="hand2",
 ).grid(row=0, column=1, sticky="e")
 
 # ---------- RELAY BUTTONS ----------
@@ -886,6 +963,7 @@ btn_frame = make_card(right_col, "Manual Relay Control")
 btn_frame.grid(row=1, column=0, sticky="nsew", pady=(0, 10))
 btn_frame.grid_columnconfigure(0, weight=1)
 btn_frame.grid_columnconfigure(1, weight=1)
+
 
 def send_cmd(cmd):
     try:
@@ -960,11 +1038,16 @@ def parse_telegram_command(text):
 
     return "Unknown command. Use /help", None
 
+
 btns = [
-    ("Fan ON","F"),("Fan OFF","f"),
-    ("Pump ON","P"),("Pump OFF","p"),
-    ("Light ON","L"),("Light OFF","l"),
-    ("Buzzer ON","B"),("Buzzer OFF","b"),
+    ("Fan ON", "F"),
+    ("Fan OFF", "f"),
+    ("Pump ON", "P"),
+    ("Pump OFF", "p"),
+    ("Light ON", "L"),
+    ("Light OFF", "l"),
+    ("Buzzer ON", "B"),
+    ("Buzzer OFF", "b"),
 ]
 
 for i, (text, cmd) in enumerate(btns):
@@ -981,7 +1064,7 @@ for i, (text, cmd) in enumerate(btns):
         activeforeground="white",
         relief="flat",
         cursor="hand2",
-        pady=4
+        pady=4,
     ).grid(row=i // 2, column=i % 2, padx=6, pady=6, sticky="ew")
 
 # ---------- SENSORS SLIDERS ----------
@@ -989,23 +1072,30 @@ slider_frame = make_card(right_col, "Sensor Sensitivity")
 slider_frame.grid(row=2, column=0, sticky="nsew")
 slider_frame.grid_columnconfigure(1, weight=1)
 
+
 def send_slider_value(param, val):
     send_cmd(f"S{param}{int(float(val))}\n")
+
 
 tk.Label(
     slider_frame,
     text="Temp ON (°C)",
     bg=COLORS["panel"],
     fg=COLORS["text"],
-    font=FONT_VALUE
+    font=FONT_VALUE,
 ).grid(row=0, column=0, sticky="w", pady=(2, 8))
 
-temp_slider = tk.Scale(slider_frame, from_=20, to=40, orient=tk.HORIZONTAL,
-                       command=lambda val: send_slider_value('T', val),
-                       bg=COLORS["panel"],
-                       troughcolor="#dbeafe",
-                       highlightthickness=0,
-                       activebackground=COLORS["accent_alt"])
+temp_slider = tk.Scale(
+    slider_frame,
+    from_=20,
+    to=40,
+    orient=tk.HORIZONTAL,
+    command=lambda val: send_slider_value("T", val),
+    bg=COLORS["panel"],
+    troughcolor="#dbeafe",
+    highlightthickness=0,
+    activebackground=COLORS["accent_alt"],
+)
 temp_slider.set(28)
 temp_slider.grid(row=0, column=1, sticky="we", pady=(2, 8))
 
@@ -1014,15 +1104,20 @@ tk.Label(
     text="Soil Dry (ADC)",
     bg=COLORS["panel"],
     fg=COLORS["text"],
-    font=FONT_VALUE
+    font=FONT_VALUE,
 ).grid(row=1, column=0, sticky="w", pady=8)
 
-soil_slider = tk.Scale(slider_frame, from_=1000, to=3000, orient=tk.HORIZONTAL,
-                       command=lambda val: send_slider_value('S', val),
-                       bg=COLORS["panel"],
-                       troughcolor="#dcfce7",
-                       highlightthickness=0,
-                       activebackground=COLORS["accent"])
+soil_slider = tk.Scale(
+    slider_frame,
+    from_=1000,
+    to=3000,
+    orient=tk.HORIZONTAL,
+    command=lambda val: send_slider_value("S", val),
+    bg=COLORS["panel"],
+    troughcolor="#dcfce7",
+    highlightthickness=0,
+    activebackground=COLORS["accent"],
+)
 soil_slider.set(1800)
 soil_slider.grid(row=1, column=1, sticky="we", pady=8)
 
@@ -1031,15 +1126,20 @@ tk.Label(
     text="Light Threshold (lux)",
     bg=COLORS["panel"],
     fg=COLORS["text"],
-    font=FONT_VALUE
+    font=FONT_VALUE,
 ).grid(row=2, column=0, sticky="w", pady=(8, 2))
 
-light_slider = tk.Scale(slider_frame, from_=1, to=50, orient=tk.HORIZONTAL,
-                        command=lambda val: send_slider_value('L', val),
-                        bg=COLORS["panel"],
-                        troughcolor="#fff3cd",
-                        highlightthickness=0,
-                        activebackground=COLORS["warning"])
+light_slider = tk.Scale(
+    slider_frame,
+    from_=1,
+    to=50,
+    orient=tk.HORIZONTAL,
+    command=lambda val: send_slider_value("L", val),
+    bg=COLORS["panel"],
+    troughcolor="#fff3cd",
+    highlightthickness=0,
+    activebackground=COLORS["warning"],
+)
 light_slider.set(5)
 light_slider.grid(row=2, column=1, sticky="we", pady=(8, 2))
 
@@ -1052,9 +1152,10 @@ status_bar = tk.Label(
     fg=COLORS["muted"],
     font=("Segoe UI", 9),
     padx=12,
-    pady=6
+    pady=6,
 )
 status_bar.grid(row=2, column=0, sticky="ew")
+
 
 # ---------- SERIAL READER ----------
 def read_serial():
@@ -1062,7 +1163,8 @@ def read_serial():
     while True:
         try:
             line = ser.readline().decode(errors="ignore").strip()
-            if not line: continue
+            if not line:
+                continue
 
             status_bar.config(text=f"Live data • {line[:90]}")
 
@@ -1091,33 +1193,37 @@ def read_serial():
                     data_labels["Lux"].config(text=light_text)
 
             if "🔥 Flame:" in line and "👀 IR:" in line:
-                parts = line.replace("🔥 Flame:","").replace("👀 IR:","").split()
+                parts = line.replace("🔥 Flame:", "").replace("👀 IR:", "").split()
                 if len(parts) >= 2:
-                    update_training_state("flame_detected", parse_binary_state(parts[0]))
+                    update_training_state(
+                        "flame_detected", parse_binary_state(parts[0])
+                    )
                     update_training_state("ir_detected", parse_binary_state(parts[1]))
-                    if sensor_vars["Flame"].get(): data_labels["Flame"].config(text=parts[0])
-                    if sensor_vars["IR"].get(): data_labels["IR"].config(text=parts[1])
+                    if sensor_vars["Flame"].get():
+                        data_labels["Flame"].config(text=parts[0])
+                    if sensor_vars["IR"].get():
+                        data_labels["IR"].config(text=parts[1])
 
             if "RelayStates:" in line:
-                states = line.replace("RelayStates:","").split()
+                states = line.replace("RelayStates:", "").split()
                 for i, relay in enumerate(relays):
                     if i < len(states):
-                        state = "ON" if states[i]=="1" else "OFF"
+                        state = "ON" if states[i] == "1" else "OFF"
                         key = f"relay_{relay.lower()}"
                         update_training_state(key, 1 if state == "ON" else 0)
                         relay_labels[relay].config(
                             text=state,
-                            fg=COLORS["accent"] if state=="ON" else COLORS["danger"],
-                            bg="#e8f5e9" if state=="ON" else "#ffebee"
+                            fg=COLORS["accent"] if state == "ON" else COLORS["danger"],
+                            bg="#e8f5e9" if state == "ON" else "#ffebee",
                         )
 
             if "Automation:" in line:
                 status = line.split("Automation:")[1].strip()
-                automation_on = (status == "ON")
+                automation_on = status == "ON"
                 update_training_state("automation_on", 1 if automation_on else 0)
                 automation_label.config(
                     text=f"Automation: {status}",
-                    fg=COLORS["accent"] if automation_on else COLORS["danger"]
+                    fg=COLORS["accent"] if automation_on else COLORS["danger"],
                 )
 
             maybe_log_training_row()
@@ -1133,7 +1239,9 @@ def poll_telegram_commands():
     next_offset = None
     while True:
         try:
-            ok, updates, _ = telegram_notifier.get_updates(offset=next_offset, timeout_seconds=20)
+            ok, updates, _ = telegram_notifier.get_updates(
+                offset=next_offset, timeout_seconds=20
+            )
             if not ok:
                 time.sleep(3)
                 continue
@@ -1142,7 +1250,11 @@ def poll_telegram_commands():
                 update_id = update.get("update_id")
                 if isinstance(update_id, int):
                     candidate_offset = update_id + 1
-                    next_offset = candidate_offset if next_offset is None else max(next_offset, candidate_offset)
+                    next_offset = (
+                        candidate_offset
+                        if next_offset is None
+                        else max(next_offset, candidate_offset)
+                    )
 
                 message = update.get("message") or update.get("edited_message")
                 if not isinstance(message, dict):
@@ -1159,9 +1271,12 @@ def poll_telegram_commands():
 
                 reply, reply_markup = parse_telegram_command(message_text)
                 if reply:
-                    telegram_notifier.send_message_async(reply, reply_markup=reply_markup)
+                    telegram_notifier.send_message_async(
+                        reply, reply_markup=reply_markup
+                    )
         except Exception:
             time.sleep(3)
+
 
 def on_close():
     try:
@@ -1173,6 +1288,7 @@ def on_close():
     except Exception:
         pass
     root.destroy()
+
 
 root.protocol("WM_DELETE_WINDOW", on_close)
 

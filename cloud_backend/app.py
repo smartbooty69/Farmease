@@ -27,8 +27,7 @@ def get_conn() -> sqlite3.Connection:
 def init_db() -> None:
     conn = get_conn()
     try:
-        conn.execute(
-            """
+        conn.execute("""
             CREATE TABLE IF NOT EXISTS ingested_batches (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 source TEXT NOT NULL,
@@ -37,14 +36,11 @@ def init_db() -> None:
                 received_at TEXT NOT NULL,
                 payload_json TEXT NOT NULL
             )
-            """
-        )
-        conn.execute(
-            """
+            """)
+        conn.execute("""
             CREATE INDEX IF NOT EXISTS idx_ingested_batches_source_time
             ON ingested_batches (source, received_at)
-            """
-        )
+            """)
         conn.commit()
     finally:
         conn.close()
@@ -480,7 +476,9 @@ def get_recent_batches(source: str, limit: int = 50) -> list[dict[str, Any]]:
     return [dict(row) for row in rows]
 
 
-def extract_rows_from_batches(batches: list[dict[str, Any]], max_rows: int = 400) -> list[dict[str, Any]]:
+def extract_rows_from_batches(
+    batches: list[dict[str, Any]], max_rows: int = 400
+) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     for batch in reversed(batches):
         try:
@@ -512,7 +510,10 @@ def dashboard_data() -> dict[str, Any]:
     event_batches = get_recent_batches("event_timeline", limit=80)
     all_recent_batches = sorted(
         [
-            {k: item.get(k) for k in ("id", "source", "device_id", "row_count", "received_at")}
+            {
+                k: item.get(k)
+                for k in ("id", "source", "device_id", "row_count", "received_at")
+            }
             for item in (training_batches + event_batches)
         ],
         key=lambda item: item.get("id", 0),
@@ -526,17 +527,35 @@ def dashboard_data() -> dict[str, Any]:
     latest_relays = {
         "relay_fan": latest_telemetry.get("relay_fan") if latest_telemetry else None,
         "relay_pump": latest_telemetry.get("relay_pump") if latest_telemetry else None,
-        "relay_light": latest_telemetry.get("relay_light") if latest_telemetry else None,
-        "relay_buzzer": latest_telemetry.get("relay_buzzer") if latest_telemetry else None,
+        "relay_light": (
+            latest_telemetry.get("relay_light") if latest_telemetry else None
+        ),
+        "relay_buzzer": (
+            latest_telemetry.get("relay_buzzer") if latest_telemetry else None
+        ),
     }
 
-    temp_points = [value for value in (parse_float(row.get("temp_c")) for row in training_rows) if value is not None]
-    light_points = [value for value in (parse_float(row.get("light_lux")) for row in training_rows) if value is not None]
+    temp_points = [
+        value
+        for value in (parse_float(row.get("temp_c")) for row in training_rows)
+        if value is not None
+    ]
+    light_points = [
+        value
+        for value in (parse_float(row.get("light_lux")) for row in training_rows)
+        if value is not None
+    ]
 
-    training_total_rows = sum(int(batch.get("row_count") or 0) for batch in training_batches)
+    training_total_rows = sum(
+        int(batch.get("row_count") or 0) for batch in training_batches
+    )
     event_total_rows = sum(int(batch.get("row_count") or 0) for batch in event_batches)
 
-    last_sync = all_recent_batches[0] if all_recent_batches else {"source": None, "received_at": None}
+    last_sync = (
+        all_recent_batches[0]
+        if all_recent_batches
+        else {"source": None, "received_at": None}
+    )
 
     recent_events = list(reversed(event_rows[-20:]))
 

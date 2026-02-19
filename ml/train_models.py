@@ -10,9 +10,23 @@ import numpy as np
 import pandas as pd
 from sklearn.base import clone
 from sklearn.compose import TransformedTargetRegressor
-from sklearn.ensemble import HistGradientBoostingClassifier, HistGradientBoostingRegressor, RandomForestClassifier, RandomForestRegressor
+from sklearn.ensemble import (
+    HistGradientBoostingClassifier,
+    HistGradientBoostingRegressor,
+    RandomForestClassifier,
+    RandomForestRegressor,
+)
 from sklearn.impute import SimpleImputer
-from sklearn.metrics import accuracy_score, f1_score, mean_absolute_error, mean_squared_error, precision_score, r2_score, recall_score, roc_auc_score
+from sklearn.metrics import (
+    accuracy_score,
+    f1_score,
+    mean_absolute_error,
+    mean_squared_error,
+    precision_score,
+    r2_score,
+    recall_score,
+    roc_auc_score,
+)
 from sklearn.pipeline import Pipeline
 
 try:
@@ -21,18 +35,32 @@ except Exception:
     tqdm = None
 
 try:
-    from .ml_pipeline import build_feature_frame, load_dataset, make_supervised_data, prepare_dataframe
+    from .ml_pipeline import (
+        build_feature_frame,
+        load_dataset,
+        make_supervised_data,
+        prepare_dataframe,
+    )
 except ImportError:
-    from ml_pipeline import build_feature_frame, load_dataset, make_supervised_data, prepare_dataframe
+    from ml_pipeline import (
+        build_feature_frame,
+        load_dataset,
+        make_supervised_data,
+        prepare_dataframe,
+    )
 
 
-def select_candidate_models(candidates: dict[str, Any], model_family: str) -> dict[str, Any]:
+def select_candidate_models(
+    candidates: dict[str, Any], model_family: str
+) -> dict[str, Any]:
     if model_family == "all":
         return candidates
 
     if model_family == "xgboost":
         if "xgboost" not in candidates:
-            raise RuntimeError("XGBoost model requested, but xgboost is not available in this environment.")
+            raise RuntimeError(
+                "XGBoost model requested, but xgboost is not available in this environment."
+            )
         return {"xgboost": candidates["xgboost"]}
 
     raise ValueError(f"Unsupported model family: {model_family}")
@@ -84,15 +112,23 @@ def evaluate_relay_quality_gate(
         train_count = int(train_counts.get(class_label, 0))
         valid_count = int(valid_counts.get(class_label, 0))
         if train_count < min_class_count:
-            issues.append(f"train class {class_label} count too low ({train_count} < {min_class_count})")
+            issues.append(
+                f"train class {class_label} count too low ({train_count} < {min_class_count})"
+            )
         if valid_count < min_class_count:
-            issues.append(f"validation class {class_label} count too low ({valid_count} < {min_class_count})")
+            issues.append(
+                f"validation class {class_label} count too low ({valid_count} < {min_class_count})"
+            )
 
     summary = {
         "passed": len(issues) == 0,
         "min_class_count": int(min_class_count),
-        "train_counts": {str(label): int(count) for label, count in train_counts.items()},
-        "valid_counts": {str(label): int(count) for label, count in valid_counts.items()},
+        "train_counts": {
+            str(label): int(count) for label, count in train_counts.items()
+        },
+        "valid_counts": {
+            str(label): int(count) for label, count in valid_counts.items()
+        },
         "issues": issues,
     }
 
@@ -239,7 +275,9 @@ def run_walk_forward_classification(
             "train_rows": int(len(fold_train_x)),
             "valid_rows": int(len(fold_valid_x)),
             "accuracy": float(accuracy_score(fold_valid_y, prediction)),
-            "precision": float(precision_score(fold_valid_y, prediction, zero_division=0)),
+            "precision": float(
+                precision_score(fold_valid_y, prediction, zero_division=0)
+            ),
             "recall": float(recall_score(fold_valid_y, prediction, zero_division=0)),
             "f1": float(f1_score(fold_valid_y, prediction, zero_division=0)),
         }
@@ -376,8 +414,12 @@ def fit_best_regressor(
     model_family: str,
     show_progress: bool,
 ) -> tuple[str, Pipeline, dict[str, dict[str, Any]], str, list[str]]:
-    candidate_models = build_regression_candidates(random_state=random_state, device=device)
-    candidate_models = select_candidate_models(candidate_models, model_family=model_family)
+    candidate_models = build_regression_candidates(
+        random_state=random_state, device=device
+    )
+    candidate_models = select_candidate_models(
+        candidate_models, model_family=model_family
+    )
     scores: dict[str, dict[str, Any]] = {}
     warnings: list[str] = []
     best_name = ""
@@ -399,7 +441,12 @@ def fit_best_regressor(
         pipeline = Pipeline(
             steps=[
                 ("imputer", SimpleImputer(strategy="median")),
-                ("regressor", TransformedTargetRegressor(regressor=model, func=np.log1p, inverse_func=np.expm1)),
+                (
+                    "regressor",
+                    TransformedTargetRegressor(
+                        regressor=model, func=np.log1p, inverse_func=np.expm1
+                    ),
+                ),
             ]
         )
         try:
@@ -413,7 +460,11 @@ def fit_best_regressor(
         rmse_score = float(np.sqrt(mean_squared_error(valid_y, prediction)))
         r2_value = float(r2_score(valid_y, prediction))
 
-        metric_entry: dict[str, Any] = {"mae": mae_score, "rmse": rmse_score, "r2": r2_value}
+        metric_entry: dict[str, Any] = {
+            "mae": mae_score,
+            "rmse": rmse_score,
+            "r2": r2_value,
+        }
         model_selection_loss = mae_score
         model_selection_mode = "holdout_mae"
 
@@ -425,10 +476,14 @@ def fit_best_regressor(
                 folds=walk_forward_folds,
             )
             metric_entry["walk_forward"] = walk_forward.get("metrics", {})
-            metric_entry["walk_forward_folds_run"] = int(walk_forward.get("folds_run", 0))
+            metric_entry["walk_forward_folds_run"] = int(
+                walk_forward.get("folds_run", 0)
+            )
 
             if int(walk_forward.get("folds_run", 0)) >= 2:
-                stable_loss = stability_adjusted_regression_loss(walk_forward.get("metrics", {}))
+                stable_loss = stability_adjusted_regression_loss(
+                    walk_forward.get("metrics", {})
+                )
                 if stable_loss is not None:
                     model_selection_loss = stable_loss
                     model_selection_mode = "walk_forward_stability"
@@ -459,15 +514,21 @@ def fit_best_classifier(
     device: str,
     model_family: str,
     show_progress: bool,
-) -> tuple[str | None, Pipeline | None, dict[str, dict[str, Any]], str | None, str, list[str]]:
+) -> tuple[
+    str | None, Pipeline | None, dict[str, dict[str, Any]], str | None, str, list[str]
+]:
     warnings: list[str] = []
     unique_labels = sorted(train_y.dropna().unique().tolist())
     if len(unique_labels) < 2:
         reason = "Skipping relay_light classifier: target has only one class in training split."
         return None, None, {}, reason, "holdout_f1", warnings
 
-    candidate_models = build_classification_candidates(random_state=random_state, device=device)
-    candidate_models = select_candidate_models(candidate_models, model_family=model_family)
+    candidate_models = build_classification_candidates(
+        random_state=random_state, device=device
+    )
+    candidate_models = select_candidate_models(
+        candidate_models, model_family=model_family
+    )
     scores: dict[str, dict[str, Any]] = {}
     best_name: str | None = None
     best_pipeline: Pipeline | None = None
@@ -522,10 +583,14 @@ def fit_best_classifier(
                 folds=walk_forward_folds,
             )
             metric_entry["walk_forward"] = walk_forward.get("metrics", {})
-            metric_entry["walk_forward_folds_run"] = int(walk_forward.get("folds_run", 0))
+            metric_entry["walk_forward_folds_run"] = int(
+                walk_forward.get("folds_run", 0)
+            )
 
             if int(walk_forward.get("folds_run", 0)) >= 2:
-                stable_score = stability_adjusted_classification_score(walk_forward.get("metrics", {}))
+                stable_score = stability_adjusted_classification_score(
+                    walk_forward.get("metrics", {})
+                )
                 if stable_score is not None:
                     model_selection_score = stable_score
                     model_selection_mode = "walk_forward_stability"
@@ -539,7 +604,14 @@ def fit_best_classifier(
             best_pipeline = pipeline
 
     if best_pipeline is None:
-        return None, None, {}, "No classification model could be trained.", "holdout_f1", warnings
+        return (
+            None,
+            None,
+            {},
+            "No classification model could be trained.",
+            "holdout_f1",
+            warnings,
+        )
 
     return best_name, best_pipeline, scores, None, selection_mode, warnings
 
@@ -571,7 +643,9 @@ def train_pipeline(
     raw_frame = load_dataset(dataset_path)
     clean_frame = prepare_dataframe(raw_frame)
     feature_frame = build_feature_frame(clean_frame)
-    features, target_light, target_relay = make_supervised_data(feature_frame, horizon_steps=horizon_steps)
+    features, target_light, target_relay = make_supervised_data(
+        feature_frame, horizon_steps=horizon_steps
+    )
     advance_stage()
 
     minimum_rows = 40
@@ -591,10 +665,12 @@ def train_pipeline(
     train_y_relay = target_relay.iloc[:split_index]
     valid_y_relay = target_relay.iloc[split_index:]
     relay_validation_quality = build_validation_quality(train_y_relay, valid_y_relay)
-    relay_quality_ok, relay_quality_issues, relay_quality_gate = evaluate_relay_quality_gate(
-        train_y=train_y_relay,
-        valid_y=valid_y_relay,
-        min_class_count=max(1, int(min_relay_class_count)),
+    relay_quality_ok, relay_quality_issues, relay_quality_gate = (
+        evaluate_relay_quality_gate(
+            train_y=train_y_relay,
+            valid_y=valid_y_relay,
+            min_class_count=max(1, int(min_relay_class_count)),
+        )
     )
 
     walk_forward_folds = build_walk_forward_folds(
@@ -612,7 +688,13 @@ def train_pipeline(
         )
     advance_stage()
 
-    reg_name, reg_pipeline, regression_metrics, regression_selection_mode, regression_warnings = fit_best_regressor(
+    (
+        reg_name,
+        reg_pipeline,
+        regression_metrics,
+        regression_selection_mode,
+        regression_warnings,
+    ) = fit_best_regressor(
         train_x=train_x,
         train_y=train_y_light,
         valid_x=valid_x,
@@ -635,7 +717,14 @@ def train_pipeline(
     classification_warnings: list[str]
 
     if relay_quality_ok:
-        cls_name, cls_pipeline, classification_metrics, skip_reason, classification_selection_mode, classification_warnings = fit_best_classifier(
+        (
+            cls_name,
+            cls_pipeline,
+            classification_metrics,
+            skip_reason,
+            classification_selection_mode,
+            classification_warnings,
+        ) = fit_best_classifier(
             train_x=train_x,
             train_y=train_y_relay,
             valid_x=valid_x,
@@ -649,7 +738,14 @@ def train_pipeline(
             show_progress=show_progress,
         )
     else:
-        cls_name, cls_pipeline, classification_metrics, skip_reason, classification_selection_mode, classification_warnings = (
+        (
+            cls_name,
+            cls_pipeline,
+            classification_metrics,
+            skip_reason,
+            classification_selection_mode,
+            classification_warnings,
+        ) = (
             None,
             None,
             {},
@@ -664,7 +760,9 @@ def train_pipeline(
         joblib.dump(cls_pipeline, output_dir / "relay_light_model.joblib")
 
     feature_columns = list(features.columns)
-    with (output_dir / "feature_columns.json").open("w", encoding="utf-8") as feature_file:
+    with (output_dir / "feature_columns.json").open(
+        "w", encoding="utf-8"
+    ) as feature_file:
         json.dump(feature_columns, feature_file, indent=2)
 
     walk_forward_report: dict[str, Any] = {
@@ -718,11 +816,15 @@ def train_pipeline(
         "class_distribution_relay_light": {
             "train": {
                 str(label): int(count)
-                for label, count in train_y_relay.value_counts(dropna=False).to_dict().items()
+                for label, count in train_y_relay.value_counts(dropna=False)
+                .to_dict()
+                .items()
             },
             "valid": {
                 str(label): int(count)
-                for label, count in valid_y_relay.value_counts(dropna=False).to_dict().items()
+                for label, count in valid_y_relay.value_counts(dropna=False)
+                .to_dict()
+                .items()
             },
         },
         "quality_gate": {
@@ -762,7 +864,9 @@ def train_pipeline(
 
     report = sanitize_metrics(report)
 
-    with (output_dir / "training_report.json").open("w", encoding="utf-8") as report_file:
+    with (output_dir / "training_report.json").open(
+        "w", encoding="utf-8"
+    ) as report_file:
         json.dump(report, report_file, indent=2)
 
     advance_stage()
@@ -774,7 +878,9 @@ def train_pipeline(
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Train greenhouse models with time-aware validation.")
+    parser = argparse.ArgumentParser(
+        description="Train greenhouse models with time-aware validation."
+    )
     parser.add_argument(
         "--data",
         type=Path,
@@ -874,7 +980,9 @@ def main() -> None:
 
     relay_gate = report.get("quality_gate", {}).get("relay_light", {})
     if relay_gate and not relay_gate.get("passed", True):
-        print("Warning: relay_light quality gate failed; classifier was skipped for this run.")
+        print(
+            "Warning: relay_light quality gate failed; classifier was skipped for this run."
+        )
 
 
 if __name__ == "__main__":

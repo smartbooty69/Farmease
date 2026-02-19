@@ -143,7 +143,9 @@ def main() -> None:
     )
 
     if not client.is_configured():
-        print("Cloud sync is disabled or not configured. Set FARMEASE_CLOUD_SYNC=true and FARMEASE_CLOUD_ENDPOINT.")
+        print(
+            "Cloud sync is disabled or not configured. Set FARMEASE_CLOUD_SYNC=true and FARMEASE_CLOUD_ENDPOINT."
+        )
         return
 
     config = read_config()

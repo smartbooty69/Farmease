@@ -61,6 +61,10 @@ def ingest(request: Request):
         }
         db.collection(collection).add(doc)
     except Exception as exc:
-        return make_response(jsonify({"error": "write-failed", "detail": str(exc)}), 500)
+        return make_response(
+            jsonify({"error": "write-failed", "detail": str(exc)}), 500
+        )
 
-    return jsonify({"ok": True, "accepted_rows": len(rows), "received_at": doc["received_at"]})
+    return jsonify(
+        {"ok": True, "accepted_rows": len(rows), "received_at": doc["received_at"]}
+    )

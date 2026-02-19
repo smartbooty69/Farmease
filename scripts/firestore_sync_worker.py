@@ -132,7 +132,9 @@ def main() -> None:
 
     client = FirestoreClient()
     if not client.is_configured():
-        print("Firestore client is not configured. Set FIREBASE_PROJECT_ID and FIREBASE_SERVICE_ACCOUNT_PATH or use ADC.")
+        print(
+            "Firestore client is not configured. Set FIREBASE_PROJECT_ID and FIREBASE_SERVICE_ACCOUNT_PATH or use ADC."
+        )
         return
 
     config = read_config()

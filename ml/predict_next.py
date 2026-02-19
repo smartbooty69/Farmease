@@ -8,13 +8,25 @@ import joblib
 import pandas as pd
 
 try:
-    from .ml_pipeline import build_feature_frame, latest_feature_row, load_dataset, prepare_dataframe
+    from .ml_pipeline import (
+        build_feature_frame,
+        latest_feature_row,
+        load_dataset,
+        prepare_dataframe,
+    )
 except ImportError:
-    from ml_pipeline import build_feature_frame, latest_feature_row, load_dataset, prepare_dataframe
+    from ml_pipeline import (
+        build_feature_frame,
+        latest_feature_row,
+        load_dataset,
+        prepare_dataframe,
+    )
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Predict next greenhouse light and relay state.")
+    parser = argparse.ArgumentParser(
+        description="Predict next greenhouse light and relay state."
+    )
     parser.add_argument(
         "--data",
         type=Path,
@@ -30,7 +42,9 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def align_columns(input_frame: pd.DataFrame, expected_columns: list[str]) -> pd.DataFrame:
+def align_columns(
+    input_frame: pd.DataFrame, expected_columns: list[str]
+) -> pd.DataFrame:
     aligned = input_frame.copy()
     for column_name in expected_columns:
         if column_name not in aligned.columns:
@@ -53,7 +67,11 @@ def main() -> None:
         expected_columns = json.load(feature_file)
 
     reg_model = joblib.load(regression_model_path)
-    cls_model = joblib.load(classification_model_path) if classification_model_path.exists() else None
+    cls_model = (
+        joblib.load(classification_model_path)
+        if classification_model_path.exists()
+        else None
+    )
 
     raw_frame = load_dataset(args.data)
     clean_frame = prepare_dataframe(raw_frame)

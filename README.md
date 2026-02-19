@@ -57,13 +57,17 @@ python -m pip install -r requirements.txt
 python -m pip install -e .
 ```
 
-Run apps/scripts (either run the root launchers or installed console scripts):
+Run apps/scripts (either run the installed console scripts or the `scripts/` launchers):
 
 ```bash
-python dashboard.py
-python train_models.py
-python predict_next.py
-# or, if console scripts are available: farmease-dashboard
+# Run installed console script (after `python -m pip install -e .`):
+farmease-dashboard
+
+# Or run the project launchers directly in-place (now located in the `scripts/` package):
+python -m scripts.dashboard
+python -m scripts.train_models
+python -m scripts.predict_next
+# To use the Telegram helper module: python -m scripts.telegram_notifier
 ```
 
 Telegram setup:

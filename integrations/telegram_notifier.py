@@ -29,7 +29,9 @@ class TelegramNotifier:
     def _api_url(self, method: str) -> str:
         return f"https://api.telegram.org/bot{self.bot_token}/{method}"
 
-    def _post(self, method: str, payload: dict[str, Any], timeout: int = 8) -> tuple[bool, str]:
+    def _post(
+        self, method: str, payload: dict[str, Any], timeout: int = 8
+    ) -> tuple[bool, str]:
         if not self.enabled:
             return False, "not-configured"
 
@@ -56,7 +58,9 @@ class TelegramNotifier:
         except Exception:
             return False, "unexpected-error"
 
-    def _get_json(self, method: str, params: dict[str, Any], timeout: int = 15) -> tuple[bool, dict[str, Any], str]:
+    def _get_json(
+        self, method: str, params: dict[str, Any], timeout: int = 15
+    ) -> tuple[bool, dict[str, Any], str]:
         if not self.enabled:
             return False, {}, "not-configured"
 
@@ -126,17 +130,25 @@ class TelegramNotifier:
             return False
 
         now = time.time()
-        cooldown = self.default_cooldown_seconds if cooldown_seconds is None else max(5, int(cooldown_seconds))
+        cooldown = (
+            self.default_cooldown_seconds
+            if cooldown_seconds is None
+            else max(5, int(cooldown_seconds))
+        )
         last_time = self.last_sent.get(key, 0.0)
 
         if (now - last_time) < cooldown:
             return False
 
         self.last_sent[key] = now
-        self.send_message_async(text, parse_mode=parse_mode, disable_notification=disable_notification)
+        self.send_message_async(
+            text, parse_mode=parse_mode, disable_notification=disable_notification
+        )
         return True
 
-    def get_updates(self, offset: int | None = None, timeout_seconds: int = 15) -> tuple[bool, list[dict[str, Any]], str]:
+    def get_updates(
+        self, offset: int | None = None, timeout_seconds: int = 15
+    ) -> tuple[bool, list[dict[str, Any]], str]:
         params: dict[str, Any] = {
             "timeout": max(1, int(timeout_seconds)),
             "allowed_updates": json.dumps(["message", "edited_message"]),
@@ -144,7 +156,9 @@ class TelegramNotifier:
         if offset is not None:
             params["offset"] = int(offset)
 
-        ok, data, status = self._get_json("getUpdates", params, timeout=max(5, int(timeout_seconds) + 5))
+        ok, data, status = self._get_json(
+            "getUpdates", params, timeout=max(5, int(timeout_seconds) + 5)
+        )
         if not ok:
             return False, [], status
 

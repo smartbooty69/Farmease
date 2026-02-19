@@ -42,7 +42,9 @@ class CloudSyncClient:
         )
 
         try:
-            with urllib.request.urlopen(request, timeout=self.timeout_seconds) as response:
+            with urllib.request.urlopen(
+                request, timeout=self.timeout_seconds
+            ) as response:
                 if 200 <= int(response.status) < 300:
                     return True, "ok"
                 return False, f"http-{response.status}"

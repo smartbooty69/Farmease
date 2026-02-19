@@ -42,7 +42,9 @@ def load_dataset(csv_path: str | Path) -> pd.DataFrame:
 def _to_numeric(data_frame: pd.DataFrame, columns: Iterable[str]) -> None:
     for column_name in columns:
         if column_name in data_frame.columns:
-            data_frame[column_name] = pd.to_numeric(data_frame[column_name], errors="coerce")
+            data_frame[column_name] = pd.to_numeric(
+                data_frame[column_name], errors="coerce"
+            )
 
 
 def prepare_dataframe(raw_data_frame: pd.DataFrame) -> pd.DataFrame:
@@ -52,7 +54,11 @@ def prepare_dataframe(raw_data_frame: pd.DataFrame) -> pd.DataFrame:
         raise ValueError("Dataset must include a 'timestamp' column.")
 
     data_frame["timestamp"] = pd.to_datetime(data_frame["timestamp"], errors="coerce")
-    data_frame = data_frame.dropna(subset=["timestamp"]).sort_values("timestamp").reset_index(drop=True)
+    data_frame = (
+        data_frame.dropna(subset=["timestamp"])
+        .sort_values("timestamp")
+        .reset_index(drop=True)
+    )
 
     _to_numeric(data_frame, BASE_NUMERIC_COLUMNS)
     _to_numeric(data_frame, BASE_BINARY_COLUMNS)
@@ -63,7 +69,9 @@ def prepare_dataframe(raw_data_frame: pd.DataFrame) -> pd.DataFrame:
 
     for column_name in BASE_NUMERIC_COLUMNS:
         if column_name in data_frame.columns:
-            data_frame[column_name] = data_frame[column_name].replace([np.inf, -np.inf], np.nan)
+            data_frame[column_name] = data_frame[column_name].replace(
+                [np.inf, -np.inf], np.nan
+            )
 
     data_frame = data_frame.drop_duplicates(subset=["timestamp"], keep="last")
     data_frame = data_frame.reset_index(drop=True)
@@ -99,9 +107,13 @@ def build_feature_frame(data_frame: pd.DataFrame) -> pd.DataFrame:
             continue
 
         for lag_value in (1, 2, 3, 5):
-            engineered_frame[f"{signal_name}_lag_{lag_value}"] = engineered_frame[signal_name].shift(lag_value)
+            engineered_frame[f"{signal_name}_lag_{lag_value}"] = engineered_frame[
+                signal_name
+            ].shift(lag_value)
 
-        engineered_frame[f"{signal_name}_delta_1"] = engineered_frame[signal_name].diff(1)
+        engineered_frame[f"{signal_name}_delta_1"] = engineered_frame[signal_name].diff(
+            1
+        )
 
     if "light_lux" in engineered_frame.columns:
         for rolling_window in (3, 5, 10):
@@ -114,11 +126,21 @@ def build_feature_frame(data_frame: pd.DataFrame) -> pd.DataFrame:
                 engineered_frame["light_lux"] - engineered_frame["threshold_light_lux"]
             )
 
-    if "temp_c" in engineered_frame.columns and "threshold_temp_on" in engineered_frame.columns:
-        engineered_frame["temp_margin"] = engineered_frame["temp_c"] - engineered_frame["threshold_temp_on"]
+    if (
+        "temp_c" in engineered_frame.columns
+        and "threshold_temp_on" in engineered_frame.columns
+    ):
+        engineered_frame["temp_margin"] = (
+            engineered_frame["temp_c"] - engineered_frame["threshold_temp_on"]
+        )
 
-    if "soil_adc" in engineered_frame.columns and "threshold_soil_dry" in engineered_frame.columns:
-        engineered_frame["soil_margin"] = engineered_frame["soil_adc"] - engineered_frame["threshold_soil_dry"]
+    if (
+        "soil_adc" in engineered_frame.columns
+        and "threshold_soil_dry" in engineered_frame.columns
+    ):
+        engineered_frame["soil_margin"] = (
+            engineered_frame["soil_adc"] - engineered_frame["threshold_soil_dry"]
+        )
 
     return engineered_frame
 
@@ -130,8 +152,13 @@ def make_supervised_data(
     if horizon_steps < 1:
         raise ValueError("horizon_steps must be >= 1")
 
-    if "light_lux" not in feature_frame.columns or "relay_light" not in feature_frame.columns:
-        raise ValueError("Dataset requires 'light_lux' and 'relay_light' columns for targets.")
+    if (
+        "light_lux" not in feature_frame.columns
+        or "relay_light" not in feature_frame.columns
+    ):
+        raise ValueError(
+            "Dataset requires 'light_lux' and 'relay_light' columns for targets."
+        )
 
     target_light = feature_frame["light_lux"].shift(-horizon_steps)
     target_relay = feature_frame["relay_light"].shift(-horizon_steps)
@@ -139,7 +166,9 @@ def make_supervised_data(
     target_mask = target_light.notna() & target_relay.notna()
 
     drop_columns = ["timestamp"]
-    supervised_features = feature_frame.loc[target_mask].drop(columns=drop_columns, errors="ignore")
+    supervised_features = feature_frame.loc[target_mask].drop(
+        columns=drop_columns, errors="ignore"
+    )
     target_light = target_light.loc[target_mask]
     target_relay = target_relay.loc[target_mask]
 

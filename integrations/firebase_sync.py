@@ -27,11 +27,15 @@ class FirestoreClient:
 
             if self.sa_path:
                 cred = credentials.Certificate(self.sa_path)
-                firebase_admin.initialize_app(cred, {"projectId": self.project_id or None})
+                firebase_admin.initialize_app(
+                    cred, {"projectId": self.project_id or None}
+                )
             else:
                 # Use ADC when running on GCP
                 cred = credentials.ApplicationDefault()
-                firebase_admin.initialize_app(cred, {"projectId": self.project_id or None})
+                firebase_admin.initialize_app(
+                    cred, {"projectId": self.project_id or None}
+                )
 
             self._db = firestore.client()
         except Exception:

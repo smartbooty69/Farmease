@@ -39,10 +39,15 @@ class TelegramNotifierTests(unittest.TestCase):
         self.assertIn("reply_markup", captured["payload"])
 
     def test_send_with_cooldown_blocks_until_elapsed(self):
-        notifier = TelegramNotifier(bot_token="token", chat_id="123", enabled=True, default_cooldown_seconds=60)
+        notifier = TelegramNotifier(
+            bot_token="token", chat_id="123", enabled=True, default_cooldown_seconds=60
+        )
         notifier.send_message_async = lambda *args, **kwargs: None
 
-        with patch("integrations.telegram_notifier.time.time", side_effect=[1000.0, 1010.0, 1071.0]):
+        with patch(
+            "integrations.telegram_notifier.time.time",
+            side_effect=[1000.0, 1010.0, 1071.0],
+        ):
             first = notifier.send_with_cooldown(key="flame", text="alert")
             second = notifier.send_with_cooldown(key="flame", text="alert")
             third = notifier.send_with_cooldown(key="flame", text="alert")
