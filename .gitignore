@@ -71,6 +71,14 @@ greenhouse_analytics.db
 data/greenhouse_training_data.csv
 data/event_timeline.csv
 
+# Local cloud sync state (machine-specific)
+data/.cloud_sync_state.json
+data/.firestore_sync_state.json
+data/cloud_sync.db
+
+# Large or local-only assets
+/IOT SPLICE_2e brochure.pdf
+
 # ------------------------------
 # ML model/training artifacts
 # ------------------------------
