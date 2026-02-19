@@ -39,20 +39,31 @@ Still pending for production readiness:
 
 ## Quick start
 
-From project root (PowerShell):
+From project root (Linux/macOS):
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+python -m pip install -e .
+```
+
+From Windows PowerShell:
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-pip install -r requirements-ml.txt
+python -m pip install -r requirements.txt
+python -m pip install -e .
 ```
 
-Run apps/scripts:
+Run apps/scripts (either run the root launchers or installed console scripts):
 
-```powershell
+```bash
 python dashboard.py
 python train_models.py
 python predict_next.py
+# or, if console scripts are available: farmease-dashboard
 ```
 
 Telegram setup:
