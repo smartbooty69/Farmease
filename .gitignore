@@ -84,6 +84,9 @@ data/cloud_sync.db
 # ------------------------------
 models/*.joblib
 models/training_report.json
+models/*.pkl
+models/*.onnx
+models/*.h5
 
 # ------------------------------
 # Arduino generated binaries

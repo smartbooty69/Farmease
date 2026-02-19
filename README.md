@@ -153,3 +153,29 @@ ML artifacts are generated under `models/`.
 ## Repository maintenance
 
 - Cleanup performed (Feb 2026): removed Python caches and build artifacts; consolidated requirements into `requirements.txt`.
+
+### Secrets and config
+
+- Keep secrets out of the repository: the `.secrets/` directory is ignored by `.gitignore`.
+- Prefer environment variables or a managed secret store (GCP Secret Manager, Vault).
+- See `scripts/secret_manager.py` for helper functions to push/fetch secrets from GCP Secret Manager and to prefer environment variables.
+
+CI and local dev should set secrets via environment variables (or GitHub Actions secrets) — do not commit credentials.
+
+### Model artifacts
+
+- Large model artifacts should live in cloud storage (GCS or S3). Use `scripts/upload_models.py` and `scripts/download_models.py` to move artifacts to/from a bucket.
+- The repository keeps only small config artifacts (e.g., `models/feature_columns.json`). Model binaries are ignored via `.gitignore`.
+
+### Reproducible dependency locking
+
+- Use `requirements.in` as the input and `requirements-locked.txt` as the pinned lockfile.
+- To update pins locally:
+
+```bash
+make lock
+git add requirements-locked.txt
+git commit -m "chore: update dependency lock"
+```
+
+- CI verifies the lockfile is up-to-date (see `.github/workflows/ci.yml`).
