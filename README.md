@@ -128,3 +128,7 @@ ML artifacts are generated under `models/`.
 1. Add end-to-end tests for dashboard serial ingest and Telegram command handling.
 2. Automate retraining cadence (Task Scheduler/GitHub Actions schedule) with report checks.
 3. Package dashboard as a persistent service/installer for operator-friendly deployment.
+
+## Repository maintenance
+
+- Cleanup performed (Feb 2026): removed Python caches and build artifacts; consolidated requirements into `requirements.txt`.
