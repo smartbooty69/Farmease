@@ -1119,110 +1119,124 @@ status_bar = tk.Label(
 status_bar.grid(row=2, column=0, sticky="ew")
 
 # ---------- SERIAL READER ----------
-def read_serial():
+def process_serial_line(line):
     global automation_on
+    if not line:
+        return
+
+    status_bar.config(text=f"Live data • {line[:90]}")
+
+    if "🌡 Temp" in line:
+        temp_text = line.split("🌡 Temp:")[1].strip()
+        update_training_state("temp_c", parse_number(temp_text))
+        if sensor_vars["Temp"].get():
+            data_labels["Temp"].config(text=temp_text)
+
+    if "💧 Hum" in line:
+        humidity_text = line.split("💧 Hum:")[1].strip()
+        update_training_state("humidity_pct", parse_number(humidity_text))
+        if sensor_vars["Humidity"].get():
+            data_labels["Humidity"].config(text=humidity_text)
+
+    if "🌱 Soil ADC:" in line:
+        soil_text = line.split(":")[1].strip()
+        update_training_state("soil_adc", parse_number(soil_text))
+        if sensor_vars["Soil"].get():
+            data_labels["Soil"].config(text=soil_text)
+
+    if "💡 Light:" in line:
+        light_text = line.split(":")[1].strip()
+        update_training_state("light_lux", parse_number(light_text))
+        if sensor_vars["Lux"].get():
+            data_labels["Lux"].config(text=light_text)
+
+    if "🔥 Flame:" in line and "👀 IR:" in line:
+        parts = line.replace("🔥 Flame:","").replace("👀 IR:","").split()
+        if len(parts) >= 2:
+            update_training_state("flame_detected", parse_binary_state(parts[0]))
+            update_training_state("ir_detected", parse_binary_state(parts[1]))
+            if sensor_vars["Flame"].get():
+                data_labels["Flame"].config(text=parts[0])
+            if sensor_vars["IR"].get():
+                data_labels["IR"].config(text=parts[1])
+
+    if "RelayStates:" in line:
+        states = line.replace("RelayStates:","").split()
+        for i, relay in enumerate(relays):
+            if i < len(states):
+                state = "ON" if states[i]=="1" else "OFF"
+                key = f"relay_{relay.lower()}"
+                update_training_state(key, 1 if state == "ON" else 0)
+                relay_labels[relay].config(
+                    text=state,
+                    fg=COLORS["accent"] if state=="ON" else COLORS["danger"],
+                    bg="#e8f5e9" if state=="ON" else "#ffebee"
+                )
+
+    if "Automation:" in line:
+        status = line.split("Automation:")[1].strip()
+        automation_on = (status == "ON")
+        update_training_state("automation_on", 1 if automation_on else 0)
+        automation_label.config(
+            text=f"Automation: {status}",
+            fg=COLORS["accent"] if automation_on else COLORS["danger"]
+        )
+
+    maybe_log_training_row()
+    maybe_send_telegram_alerts()
+    update_dashboard_advice()
+
+
+def read_serial():
     while True:
         try:
             line = ser.readline().decode(errors="ignore").strip()
-            if not line: continue
-
-            status_bar.config(text=f"Live data • {line[:90]}")
-
-            if "🌡 Temp" in line:
-                temp_text = line.split("🌡 Temp:")[1].strip()
-                update_training_state("temp_c", parse_number(temp_text))
-                if sensor_vars["Temp"].get():
-                    data_labels["Temp"].config(text=temp_text)
-
-            if "💧 Hum" in line:
-                humidity_text = line.split("💧 Hum:")[1].strip()
-                update_training_state("humidity_pct", parse_number(humidity_text))
-                if sensor_vars["Humidity"].get():
-                    data_labels["Humidity"].config(text=humidity_text)
-
-            if "🌱 Soil ADC:" in line:
-                soil_text = line.split(":")[1].strip()
-                update_training_state("soil_adc", parse_number(soil_text))
-                if sensor_vars["Soil"].get():
-                    data_labels["Soil"].config(text=soil_text)
-
-            if "💡 Light:" in line:
-                light_text = line.split(":")[1].strip()
-                update_training_state("light_lux", parse_number(light_text))
-                if sensor_vars["Lux"].get():
-                    data_labels["Lux"].config(text=light_text)
-
-            if "🔥 Flame:" in line and "👀 IR:" in line:
-                parts = line.replace("🔥 Flame:","").replace("👀 IR:","").split()
-                if len(parts) >= 2:
-                    update_training_state("flame_detected", parse_binary_state(parts[0]))
-                    update_training_state("ir_detected", parse_binary_state(parts[1]))
-                    if sensor_vars["Flame"].get(): data_labels["Flame"].config(text=parts[0])
-                    if sensor_vars["IR"].get(): data_labels["IR"].config(text=parts[1])
-
-            if "RelayStates:" in line:
-                states = line.replace("RelayStates:","").split()
-                for i, relay in enumerate(relays):
-                    if i < len(states):
-                        state = "ON" if states[i]=="1" else "OFF"
-                        key = f"relay_{relay.lower()}"
-                        update_training_state(key, 1 if state == "ON" else 0)
-                        relay_labels[relay].config(
-                            text=state,
-                            fg=COLORS["accent"] if state=="ON" else COLORS["danger"],
-                            bg="#e8f5e9" if state=="ON" else "#ffebee"
-                        )
-
-            if "Automation:" in line:
-                status = line.split("Automation:")[1].strip()
-                automation_on = (status == "ON")
-                update_training_state("automation_on", 1 if automation_on else 0)
-                automation_label.config(
-                    text=f"Automation: {status}",
-                    fg=COLORS["accent"] if automation_on else COLORS["danger"]
-                )
-
-            maybe_log_training_row()
-            maybe_send_telegram_alerts()
-            update_dashboard_advice()
+            process_serial_line(line)
 
         except Exception as e:
             print("Serial read error:", e)
             status_bar.config(text="Serial read warning • Check USB connection")
 
 
+def process_telegram_updates(next_offset):
+    maybe_resume_automation_after_manual_override()
+    ok, updates, _ = telegram_notifier.get_updates(offset=next_offset, timeout_seconds=20)
+    if not ok:
+        return next_offset, False
+
+    for update in updates:
+        update_id = update.get("update_id")
+        if isinstance(update_id, int):
+            candidate_offset = update_id + 1
+            next_offset = candidate_offset if next_offset is None else max(next_offset, candidate_offset)
+
+        message = update.get("message") or update.get("edited_message")
+        if not isinstance(message, dict):
+            continue
+
+        chat = message.get("chat") or {}
+        message_chat_id = str(chat.get("id", "")).strip()
+        if message_chat_id != str(telegram_notifier.chat_id):
+            continue
+
+        message_text = message.get("text")
+        if not isinstance(message_text, str):
+            continue
+
+        reply, reply_markup = parse_telegram_command(message_text)
+        if reply:
+            telegram_notifier.send_message_async(reply, reply_markup=reply_markup)
+
+    return next_offset, True
+
+
 def poll_telegram_commands():
     next_offset = None
     while True:
         try:
-            maybe_resume_automation_after_manual_override()
-            ok, updates, _ = telegram_notifier.get_updates(offset=next_offset, timeout_seconds=20)
+            next_offset, ok = process_telegram_updates(next_offset)
             if not ok:
                 time.sleep(3)
-                continue
-
-            for update in updates:
-                update_id = update.get("update_id")
-                if isinstance(update_id, int):
-                    candidate_offset = update_id + 1
-                    next_offset = candidate_offset if next_offset is None else max(next_offset, candidate_offset)
-
-                message = update.get("message") or update.get("edited_message")
-                if not isinstance(message, dict):
-                    continue
-
-                chat = message.get("chat") or {}
-                message_chat_id = str(chat.get("id", "")).strip()
-                if message_chat_id != str(telegram_notifier.chat_id):
-                    continue
-
-                message_text = message.get("text")
-                if not isinstance(message_text, str):
-                    continue
-
-                reply, reply_markup = parse_telegram_command(message_text)
-                if reply:
-                    telegram_notifier.send_message_async(reply, reply_markup=reply_markup)
         except Exception:
             time.sleep(3)
 

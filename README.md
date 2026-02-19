@@ -18,12 +18,14 @@ Implemented:
 - Baseline training reports and model artifact persistence
 - CI syntax + unit test checks
 - Expanded ML pipeline/unit coverage (data prep, supervised shaping, split/gate utilities)
+- Dashboard integration coverage for serial line processing and Telegram command dispatch
 - Stability-aware model selection using walk-forward mean/std consistency
 - Operations scripts/runbook for dashboard startup and retraining workflow
+- Automated retraining workflow with generated health-check reports
 
 Still pending for production readiness:
-- Broader end-to-end/integration tests (dashboard + serial + Telegram command loop)
-- Scheduled retraining/monitoring automation (task scheduler or CI cron + alerting)
+- Hardware-in-the-loop end-to-end tests (live serial device + dashboard UI + Telegram command loop)
+- Rollout of scheduled retraining in deployment environments (task registration + threshold tuning)
 - Installer/service packaging for non-developer environments
 
 ## Structure
@@ -75,6 +77,7 @@ Optional cloud-sync prep:
 - `docs/CLOUD_BACKEND_SETUP.md`
 - `.\scripts\run_cloud_sync.ps1`
 - `.\scripts\run_cloud_api.ps1`
+- `cloud_backend/api_server.py`
 
 ## Validation commands
 
@@ -97,10 +100,28 @@ Run full event rehearsal workflow:
 .\scripts\event_rehearsal.ps1
 ```
 
+Run retraining + health check workflow:
+
+```powershell
+.\scripts\run_retraining_healthcheck.ps1 -FailOnHealthIssue
+```
+
+Install a daily scheduled retraining task (Windows):
+
+```powershell
+.\scripts\install_retraining_schedule.ps1 -DailyAt "02:00" -FailOnHealthIssue
+```
+
 Run optional cloud sync worker (future path):
 
 ```powershell
 .\scripts\run_cloud_sync.ps1
+```
+
+Run optional local cloud ingest API:
+
+```powershell
+.\scripts\run_cloud_api.ps1
 ```
 
 CI runs equivalent checks on each push/PR via:
@@ -125,6 +146,6 @@ ML artifacts are generated under `models/`.
 
 ## Near-term backlog (recommended)
 
-1. Add end-to-end tests for dashboard serial ingest and Telegram command handling.
+1. Add hardware-in-the-loop end-to-end tests for dashboard serial ingest and Telegram command handling.
 2. Automate retraining cadence (Task Scheduler/GitHub Actions schedule) with report checks.
 3. Package dashboard as a persistent service/installer for operator-friendly deployment.

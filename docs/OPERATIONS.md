@@ -39,6 +39,34 @@ The script runs:
 1. `train_models.py` with configurable walk-forward splits
 2. `predict_next.py` smoke check to verify artifacts load and infer
 
+## Retraining + health check (automated workflow)
+
+Run the full automation flow manually:
+
+```powershell
+.\scripts\run_retraining_healthcheck.ps1 -FailOnHealthIssue
+```
+
+This workflow runs:
+1. Model retraining
+2. Prediction smoke check
+3. Event evidence generation (`docs/EVENT_EVIDENCE.md`)
+4. Health check generation (`models/health_check_report.json`, `docs/HEALTH_CHECK.md`)
+
+Install a daily scheduled task on Windows:
+
+```powershell
+.\scripts\install_retraining_schedule.ps1 -DailyAt "02:00" -FailOnHealthIssue
+```
+
+Useful scheduled-task commands:
+
+```powershell
+Start-ScheduledTask -TaskName "FarmEase-RetrainingHealthcheck"
+Get-ScheduledTask -TaskName "FarmEase-RetrainingHealthcheck"
+Unregister-ScheduledTask -TaskName "FarmEase-RetrainingHealthcheck" -Confirm:$false
+```
+
 ## Validation checklist
 
 ```powershell
@@ -69,7 +97,7 @@ This sequence executes:
 For 4-8 hour stability proof, use:
 - `docs/EVENT_RELIABILITY_LOG_TEMPLATE.md`
 
-## Optional cloud-sync worker (future path)
+## Optional cloud-sync worker
 
 Cloud sync is optional and does not replace local control.
 
