@@ -1,4 +1,10 @@
-from .cloud_sync import CloudSyncClient
 from .telegram_notifier import TelegramNotifier
 
-__all__ = ["CloudSyncClient", "TelegramNotifier"]
+try:
+	from .cloud_sync import CloudSyncClient
+except ModuleNotFoundError:
+	CloudSyncClient = None
+
+__all__ = ["TelegramNotifier"]
+if CloudSyncClient is not None:
+	__all__.append("CloudSyncClient")
