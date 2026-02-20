@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
+from urllib.parse import parse_qs, urlparse
 
 
 def parse_args() -> argparse.Namespace:
@@ -21,6 +22,50 @@ def parse_args() -> argparse.Namespace:
 class IngestHandler(BaseHTTPRequestHandler):
     server_version = "FarmEaseCloudAPI/1.0"
 
+    def _is_authorized(self) -> bool:
+        expected_key = getattr(self.server, "api_key", "")
+        if not expected_key:
+            return True
+        provided_key = self.headers.get("X-API-Key", "")
+        return provided_key == expected_key
+
+    def _read_latest_payload(self, limit: int = 20) -> dict[str, Any] | None:
+        output_path = Path(getattr(self.server, "output_path", "data/cloud_ingest.jsonl"))
+        if not output_path.exists():
+            return None
+
+        try:
+            last_line = ""
+            with output_path.open("r", encoding="utf-8") as source:
+                for raw in source:
+                    if raw.strip():
+                        last_line = raw.strip()
+
+            if not last_line:
+                return None
+
+            record = json.loads(last_line)
+            payload = record.get("payload") if isinstance(record, dict) else None
+            if not isinstance(payload, dict):
+                return None
+
+            events = payload.get("events") if isinstance(payload.get("events"), list) else []
+            recent_events = events[-max(1, int(limit)):] if events else []
+            latest_event = recent_events[-1] if recent_events else None
+
+            return {
+                "ok": True,
+                "service": "farmease-cloud-ingest",
+                "received_at_utc": record.get("received_at_utc"),
+                "device_id": payload.get("device_id", "unknown"),
+                "batch_size": payload.get("batch_size", len(events)),
+                "sent_at_epoch": payload.get("sent_at_epoch"),
+                "latest_event": latest_event,
+                "recent_events": recent_events,
+            }
+        except Exception:
+            return None
+
     def _json_response(self, status_code: int, payload: dict[str, Any]) -> None:
         body = json.dumps(payload).encode("utf-8")
         self.send_response(status_code)
@@ -30,7 +75,10 @@ class IngestHandler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_GET(self) -> None:
-        if self.path.rstrip("/") == "/health":
+        parsed = urlparse(self.path)
+        route = parsed.path.rstrip("/")
+
+        if route == "/health":
             self._json_response(
                 200,
                 {
@@ -41,6 +89,26 @@ class IngestHandler(BaseHTTPRequestHandler):
             )
             return
 
+        if route == "/latest":
+            if not self._is_authorized():
+                self._json_response(401, {"ok": False, "error": "unauthorized"})
+                return
+
+            query = parse_qs(parsed.query or "")
+            raw_limit = (query.get("limit") or ["20"])[0]
+            try:
+                limit = max(1, min(100, int(raw_limit)))
+            except Exception:
+                limit = 20
+
+            latest = self._read_latest_payload(limit=limit)
+            if latest is None:
+                self._json_response(404, {"ok": False, "error": "no-ingest-data"})
+                return
+
+            self._json_response(200, latest)
+            return
+
         self._json_response(404, {"ok": False, "error": "not-found"})
 
     def do_POST(self) -> None:
@@ -48,9 +116,7 @@ class IngestHandler(BaseHTTPRequestHandler):
             self._json_response(404, {"ok": False, "error": "not-found"})
             return
 
-        expected_key = getattr(self.server, "api_key", "")
-        provided_key = self.headers.get("X-API-Key", "")
-        if expected_key and provided_key != expected_key:
+        if not self._is_authorized():
             self._json_response(401, {"ok": False, "error": "unauthorized"})
             return
 
@@ -104,6 +170,7 @@ def main() -> None:
     print(f"FarmEase cloud ingest API listening on http://{args.host}:{args.port}")
     print(f"Ingest endpoint: http://{args.host}:{args.port}/ingest")
     print(f"Health endpoint: http://{args.host}:{args.port}/health")
+    print(f"Latest endpoint: http://{args.host}:{args.port}/latest")
     print(f"Output log: {args.output}")
     try:
         server.serve_forever()

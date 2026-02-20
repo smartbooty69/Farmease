@@ -1,5 +1,5 @@
 param(
-    [string]$Host = "127.0.0.1",
+    [string]$ListenHost = "127.0.0.1",
     [int]$Port = 8787,
     [string]$ApiKey = "demo-key"
 )
@@ -19,5 +19,5 @@ if (-not (Test-Path $ApiScript)) {
     throw "Cloud API script not found at $ApiScript"
 }
 
-Write-Host "Starting cloud ingest API on $Host`:$Port" -ForegroundColor Green
-& $PythonExe $ApiScript --host $Host --port $Port --api-key $ApiKey
+Write-Host "Starting cloud ingest API on $ListenHost`:$Port" -ForegroundColor Green
+& $PythonExe $ApiScript --host $ListenHost --port $Port --api-key $ApiKey
