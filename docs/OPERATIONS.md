@@ -47,6 +47,12 @@ Run the full automation flow manually:
 .\scripts\run_retraining_healthcheck.ps1 -FailOnHealthIssue
 ```
 
+Optional flags:
+
+```powershell
+.\scripts\run_retraining_healthcheck.ps1 -StrictRelayQuality -WalkForwardSplits 8
+```
+
 This workflow runs:
 1. Model retraining
 2. Prediction smoke check
@@ -94,9 +100,6 @@ This sequence executes:
 3. Retraining + prediction smoke check
 4. Event evidence generation (`docs/EVENT_EVIDENCE.md`)
 
-For 4-8 hour stability proof, use:
-- `docs/EVENT_RELIABILITY_LOG_TEMPLATE.md`
-
 ## Optional cloud-sync worker
 
 Cloud sync is optional and does not replace local control.
@@ -106,6 +109,14 @@ Start demo cloud ingest API (optional):
 ```powershell
 .\scripts\run_cloud_api.ps1
 ```
+
+Run one cloud sync cycle:
+
+```powershell
+.\scripts\run_cloud_sync.ps1 -Once
+```
+
+Run continuous cloud sync worker:
 
 ```powershell
 .\scripts\run_cloud_sync.ps1

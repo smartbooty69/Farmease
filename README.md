@@ -34,6 +34,8 @@ Still pending for production readiness:
 - `integrations/` - external integrations (Telegram notifier)
 - `ml/` - machine learning pipeline, training, and inference scripts
 - `firmware/` - Arduino/IoT firmware
+- `cloud_backend/` - local demo ingest API for optional cloud sync
+- `scripts/` - operational PowerShell/Python automation scripts
 - `docs/` - setup and usage documentation
 - `data/` - logged sensor/training CSVs (generated locally)
 - `models/` - trained model artifacts and reports
@@ -55,7 +57,26 @@ Run apps/scripts:
 python dashboard.py
 python train_models.py
 python predict_next.py
+.\scripts\run_web_frontend.ps1
 ```
+
+Cloud + web dashboard quick start (two terminals):
+
+Terminal 1:
+
+```powershell
+.\scripts\run_cloud_api.ps1
+```
+
+Terminal 2:
+
+```powershell
+$env:FARMEASE_CLOUD_ENDPOINT="http://127.0.0.1:8787/ingest"
+$env:FARMEASE_CLOUD_API_KEY="demo-key"
+.\scripts\run_web_frontend.ps1
+```
+
+Open: `http://127.0.0.1:8080/`
 
 Telegram setup:
 - See `docs/TELEGRAM_SETUP.md`
@@ -63,21 +84,22 @@ Telegram setup:
 Operations runbook:
 - See `docs/OPERATIONS.md`
 
-Event prep assets:
-- `docs/EVENT_READY_PACK.md` (single checklist for event readiness)
-- `docs/EVENT_EVIDENCE.md` (generated evidence summary)
-- `docs/EVENT_DEMO_SCRIPT.md` (3-5 minute demo flow)
-- `docs/EVENT_ARCHITECTURE.md` (architecture slide diagram)
-- `docs/EVENT_FALLBACK_PLAN.md` (internet/Telegram failure plan)
-- `docs/EVENT_ONE_PAGER.md` (problem, impact, BOM, roadmap)
-- `docs/EVENT_RELIABILITY_LOG_TEMPLATE.md` (4-8 hour reliability checklist)
+Core documentation:
+- `docs/TELEGRAM_SETUP.md` (alerts and bot command controls)
+- `docs/OPERATIONS.md` (startup, retraining, validation)
+- `docs/CLOUD_SYNC_PREP.md` (worker env + sync flow)
+- `docs/CLOUD_BACKEND_SETUP.md` (local ingest API)
+- `docs/EVENT_EVIDENCE.md` (generated evidence snapshot)
+- `docs/HEALTH_CHECK.md` (generated retraining health report)
 
 Optional cloud-sync prep:
 - `docs/CLOUD_SYNC_PREP.md`
 - `docs/CLOUD_BACKEND_SETUP.md`
 - `.\scripts\run_cloud_sync.ps1`
 - `.\scripts\run_cloud_api.ps1`
+- `.\scripts\run_web_frontend.ps1`
 - `cloud_backend/api_server.py`
+- `cloud_backend/frontend_server.py`
 
 ## Validation commands
 
@@ -127,11 +149,26 @@ Run optional local cloud ingest API:
 CI runs equivalent checks on each push/PR via:
 - `.github/workflows/ci.yml`
 
+## Environment quick reference
+
+The dashboard loads `.env` automatically if present.
+
+Common optional keys:
+- `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `TELEGRAM_ALERTS`, `TELEGRAM_COMMANDS`
+- `TELEGRAM_ALERT_COOLDOWN`, `TELEGRAM_ALERT_TEMP_OFFSET`, `TELEGRAM_ALERT_SOIL_MARGIN`
+- `TELEGRAM_MANUAL_HOLD_SECONDS`, `TELEGRAM_FLAME_ACTIVE_VALUE`, `TELEGRAM_IR_ACTIVE_VALUE`
+- `TELEGRAM_TEMP_FAULT_MIN_C`, `TELEGRAM_TEMP_FAULT_MAX_C`, `TELEGRAM_SOIL_FAULT_ADC_MAX`
+- `TELEGRAM_STARTUP_BRIEFING`, `FARMEASE_MODE`
+- `FARMEASE_CLOUD_SYNC`, `FARMEASE_CLOUD_ENDPOINT`, `FARMEASE_CLOUD_API_KEY`
+- `FARMEASE_CLOUD_TIMEOUT_SECONDS`, `FARMEASE_CLOUD_POLL_SECONDS`, `FARMEASE_CLOUD_BATCH_SIZE`, `FARMEASE_DEVICE_ID`
+
 ## Data and artifact policy
 
 Generated runtime logs are intentionally git-ignored:
 - `data/greenhouse_training_data.csv`
 - `data/event_timeline.csv`
+- `data/cloud_ingest.jsonl`
+- `data/.cloud_sync_state.json`
 
 ML artifacts are generated under `models/`.
 
@@ -142,7 +179,7 @@ ML artifacts are generated under `models/`.
 - ML pipeline: `ml/ml_pipeline.py`
 - Model training: `ml/train_models.py`
 - Next-step prediction: `ml/predict_next.py`
-- Firmware sketch: `firmware/iotf.ino`
+- Firmware sketch: `firmware/iotf/iotf.ino`
 
 ## Near-term backlog (recommended)
 
