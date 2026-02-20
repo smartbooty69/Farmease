@@ -6,9 +6,28 @@ import time
 import csv
 import os
 import re
+import json
 from collections import deque
 from datetime import datetime
 from integrations.telegram_notifier import TelegramNotifier
+
+try:
+    import joblib
+except Exception:
+    joblib = None
+
+try:
+    from ml.ml_pipeline import (
+        build_feature_frame,
+        latest_feature_row,
+        load_dataset,
+        prepare_dataframe,
+    )
+except Exception:
+    build_feature_frame = None
+    latest_feature_row = None
+    load_dataset = None
+    prepare_dataframe = None
 
 # ---------- SERIAL SETUP ----------
 PORT = "COM3"
@@ -18,6 +37,10 @@ DATA_DIR = "data"
 TRAINING_DATA_FILE = os.path.join(DATA_DIR, "greenhouse_training_data.csv")
 LOG_INTERVAL_SECONDS = 2
 MODEL_READY_ROWS = 1000
+PREDICTION_REFRESH_SECONDS = 5
+FEATURE_COLUMNS_FILE = os.path.join("models", "feature_columns.json")
+REGRESSION_MODEL_FILE = os.path.join("models", "light_forecast_model.joblib")
+CLASSIFICATION_MODEL_FILE = os.path.join("models", "relay_light_model.joblib")
 
 
 def load_env_file(file_name=".env"):
@@ -103,6 +126,15 @@ TRAINING_REPORT_FILE = os.path.join("models", "training_report.json")
 
 last_log_time = 0.0
 logged_rows = 0
+
+prediction_runtime = {
+    "last_signature": None,
+    "feature_columns": None,
+    "reg_model": None,
+    "cls_model": None,
+    "last_refresh_ts": 0.0,
+    "last_text": "ML Forecast: waiting for trained model artifacts...",
+}
 
 telegram_notifier = TelegramNotifier(
     bot_token=TELEGRAM_BOT_TOKEN,
@@ -458,6 +490,7 @@ def build_telegram_status_text():
         soil_text = f"{soil_value:.0f} ADC"
     light_text = "--" if training_state.get("light_lux") is None else f"{training_state['light_lux']:.2f} lux"
     risk = compute_risk_snapshot()
+    forecast_text = compute_live_prediction_text()
 
     return (
         "📊 Greenhouse Status\n"
@@ -471,7 +504,8 @@ def build_telegram_status_text():
         f"Temp: {temp_text}\n"
         f"Humidity: {humidity_text}\n"
         f"Soil: {soil_text}\n"
-        f"Light Sensor: {light_text}"
+        f"Light Sensor: {light_text}\n"
+        f"{forecast_text}"
     )
 
 
@@ -479,9 +513,11 @@ def build_telegram_advice_text():
     risk = compute_risk_snapshot()
     advice_lines = "\n".join([f"- {item}" for item in risk["advice"]])
     reasons_lines = "\n".join([f"- {item}" for item in risk["reasons"][:4]])
+    forecast_text = compute_live_prediction_text()
     return (
         "🧠 Greenhouse AI Advice\n"
         f"Risk Score: {risk['score']}/100 ({risk['level']})\n"
+        f"{forecast_text}\n"
         "Top Signals:\n"
         f"{reasons_lines}\n"
         "Recommended Actions:\n"
@@ -511,6 +547,97 @@ def build_dashboard_advice_text():
 def update_dashboard_advice():
     if "advice_banner" in globals():
         advice_banner.config(text=build_dashboard_advice_text())
+
+
+def align_feature_columns(input_frame, expected_columns):
+    aligned = input_frame.copy()
+    for column_name in expected_columns:
+        if column_name not in aligned.columns:
+            aligned[column_name] = None
+
+    return aligned[expected_columns]
+
+
+def model_artifact_signature():
+    paths = [FEATURE_COLUMNS_FILE, REGRESSION_MODEL_FILE, CLASSIFICATION_MODEL_FILE]
+    signature = []
+    for artifact_path in paths:
+        exists = os.path.exists(artifact_path)
+        mtime = os.path.getmtime(artifact_path) if exists else None
+        signature.append((artifact_path, exists, mtime))
+    return tuple(signature)
+
+
+def load_prediction_models_if_needed():
+    if joblib is None or any(dep is None for dep in (build_feature_frame, latest_feature_row, load_dataset, prepare_dataframe)):
+        return False
+
+    if not os.path.exists(FEATURE_COLUMNS_FILE) or not os.path.exists(REGRESSION_MODEL_FILE):
+        return False
+
+    signature = model_artifact_signature()
+    if signature == prediction_runtime["last_signature"] and prediction_runtime["reg_model"] is not None:
+        return True
+
+    with open(FEATURE_COLUMNS_FILE, "r", encoding="utf-8") as feature_file:
+        prediction_runtime["feature_columns"] = json.load(feature_file)
+
+    prediction_runtime["reg_model"] = joblib.load(REGRESSION_MODEL_FILE)
+    prediction_runtime["cls_model"] = joblib.load(CLASSIFICATION_MODEL_FILE) if os.path.exists(CLASSIFICATION_MODEL_FILE) else None
+    prediction_runtime["last_signature"] = signature
+    return True
+
+
+def compute_live_prediction_text(force=False):
+    now = time.time()
+    if not force and (now - prediction_runtime["last_refresh_ts"]) < PREDICTION_REFRESH_SECONDS:
+        return prediction_runtime["last_text"]
+
+    prediction_runtime["last_refresh_ts"] = now
+
+    if joblib is None or any(dep is None for dep in (build_feature_frame, latest_feature_row, load_dataset, prepare_dataframe)):
+        prediction_runtime["last_text"] = "ML Forecast: unavailable (ML dependencies not installed)"
+        return prediction_runtime["last_text"]
+
+    if not os.path.exists(FEATURE_COLUMNS_FILE) or not os.path.exists(REGRESSION_MODEL_FILE):
+        prediction_runtime["last_text"] = "ML Forecast: train models to enable predictions"
+        return prediction_runtime["last_text"]
+
+    try:
+        if not load_prediction_models_if_needed():
+            prediction_runtime["last_text"] = "ML Forecast: model artifacts unavailable"
+            return prediction_runtime["last_text"]
+
+        raw_frame = load_dataset(TRAINING_DATA_FILE)
+        clean_frame = prepare_dataframe(raw_frame)
+        feature_frame = build_feature_frame(clean_frame)
+        latest_features = latest_feature_row(feature_frame)
+        latest_features = align_feature_columns(latest_features, prediction_runtime["feature_columns"])
+
+        next_light_lux = float(prediction_runtime["reg_model"].predict(latest_features)[0])
+        text = f"ML Forecast: next light ≈ {next_light_lux:.2f} lux"
+
+        if prediction_runtime["cls_model"] is not None:
+            relay_value = int(prediction_runtime["cls_model"].predict(latest_features)[0])
+            text += f", relay light={'ON' if relay_value == 1 else 'OFF'}"
+
+            try:
+                probability = float(prediction_runtime["cls_model"].predict_proba(latest_features)[0][1])
+                text += f" ({probability * 100:.1f}% on)"
+            except Exception:
+                pass
+
+        prediction_runtime["last_text"] = text
+        return prediction_runtime["last_text"]
+    except Exception:
+        prediction_runtime["last_text"] = "ML Forecast: waiting for enough clean data"
+        return prediction_runtime["last_text"]
+
+
+def update_prediction_banner(force=False):
+    if "prediction_banner" not in globals():
+        return
+    prediction_banner.config(text=compute_live_prediction_text(force=force))
 
 
 def get_model_status_text():
@@ -740,8 +867,21 @@ advice_banner = tk.Label(
 )
 advice_banner.grid(row=3, column=0, sticky="ew", pady=(6, 0), padx=(0, 12))
 
+prediction_banner = tk.Label(
+    header,
+    text="ML Forecast: waiting for trained model artifacts...",
+    font=("Segoe UI", 9, "bold"),
+    bg="#e3f2fd",
+    fg=COLORS["accent_alt"],
+    padx=12,
+    pady=7,
+    anchor="w",
+)
+prediction_banner.grid(row=4, column=0, sticky="ew", pady=(6, 0), padx=(0, 12))
+
 update_logger_counter()
 update_dashboard_advice()
+update_prediction_banner(force=True)
 
 # ---------- MAIN LAYOUT ----------
 content = tk.Frame(root, bg=COLORS["bg"])
@@ -1185,6 +1325,7 @@ def process_serial_line(line):
     maybe_log_training_row()
     maybe_send_telegram_alerts()
     update_dashboard_advice()
+    update_prediction_banner()
 
 
 def read_serial():

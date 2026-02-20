@@ -18,6 +18,22 @@ $env:TELEGRAM_CHAT_ID="<YOUR_CHAT_ID>"
 $env:TELEGRAM_ALERTS="1"
 ```
 
+Equivalent `.env` example (project root):
+
+```env
+TELEGRAM_BOT_TOKEN=<YOUR_BOT_TOKEN>
+TELEGRAM_CHAT_ID=<YOUR_CHAT_ID>
+TELEGRAM_ALERTS=1
+TELEGRAM_COMMANDS=1
+TELEGRAM_ALERT_COOLDOWN=180
+TELEGRAM_ALERT_TEMP_OFFSET=2
+TELEGRAM_ALERT_SOIL_MARGIN=0
+TELEGRAM_MANUAL_HOLD_SECONDS=900
+TELEGRAM_FLAME_ACTIVE_VALUE=0
+TELEGRAM_IR_ACTIVE_VALUE=0
+FARMEASE_MODE=advisory
+```
+
 Optional tuning:
 ```powershell
 $env:TELEGRAM_ALERT_COOLDOWN="180"
@@ -68,3 +84,4 @@ Hackathon demo tips:
 Notes:
 - Commands are accepted only from the configured `TELEGRAM_CHAT_ID`.
 - `/help`, `/start`, or `/menu` returns the command list and shows tap buttons keyboard.
+- `FARMEASE_MODE` currently labels system mode in Telegram status/startup messages (default: `advisory`); it does not switch automation logic by itself.
