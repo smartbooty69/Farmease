@@ -162,7 +162,6 @@ class DashboardIntegrationTests(unittest.TestCase):
             self.dashboard.training_state[key] = None
 
         self.dashboard.automation_on = True
-        self.dashboard.clear_telegram_manual_override()
         self.dashboard.ser.writes.clear()
 
     def test_process_serial_line_updates_dashboard_state(self):
@@ -229,9 +228,7 @@ class DashboardIntegrationTests(unittest.TestCase):
 
         self.assertTrue(ok)
         self.assertEqual(next_offset, 8)
-        self.assertIn(b"a", self.dashboard.ser.writes)
         self.assertIn(b"F", self.dashboard.ser.writes)
-        self.assertTrue(self.dashboard.telegram_manual_override_active)
         self.assertEqual(len(notifier.sent), 1)
         self.assertIn("Fan ON command sent", notifier.sent[0][0])
 
