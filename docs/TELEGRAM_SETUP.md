@@ -28,7 +28,6 @@ TELEGRAM_COMMANDS=1
 TELEGRAM_ALERT_COOLDOWN=180
 TELEGRAM_ALERT_TEMP_OFFSET=2
 TELEGRAM_ALERT_SOIL_MARGIN=0
-TELEGRAM_MANUAL_HOLD_SECONDS=900
 TELEGRAM_FLAME_ACTIVE_VALUE=0
 TELEGRAM_IR_ACTIVE_VALUE=0
 FARMEASE_MODE=advisory
@@ -40,12 +39,9 @@ $env:TELEGRAM_ALERT_COOLDOWN="180"
 $env:TELEGRAM_ALERT_TEMP_OFFSET="2"
 $env:TELEGRAM_ALERT_SOIL_MARGIN="0"
 $env:TELEGRAM_COMMANDS="1"
-$env:TELEGRAM_MANUAL_HOLD_SECONDS="900"
 $env:TELEGRAM_FLAME_ACTIVE_VALUE="0"
 $env:TELEGRAM_IR_ACTIVE_VALUE="0"
 ```
-
-`TELEGRAM_MANUAL_HOLD_SECONDS` controls how long Telegram relay commands keep automation paused so relays do not switch back immediately. Set to `0` for indefinite manual mode until `/automation_on`.
 
 For modules that output HIGH when triggered, set active value to `1`.
 
