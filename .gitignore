@@ -29,6 +29,8 @@ ENV/
 # ------------------------------
 .env
 .env.*
+.envrc
+*.local
 
 # ------------------------------
 # Test, lint, and type-check caches
@@ -67,15 +69,12 @@ desktop.ini
 *.swp
 greenhouse_analytics.db
 
-# Generated sensor/training logs
-data/greenhouse_training_data.csv
-data/event_timeline.csv
-
-# Local cloud sync state (machine-specific)
+# Generated sensor/training logs and local sync state
+data/*.csv
+data/*.jsonl
+data/*.db
 data/.cloud_sync_state.json
 data/.firestore_sync_state.json
-data/cloud_sync.db
-data/cloud_ingest.jsonl
 
 # Large or local-only assets
 /IOT SPLICE_2e brochure.pdf
@@ -84,6 +83,7 @@ data/cloud_ingest.jsonl
 # ML model/training artifacts
 # ------------------------------
 models/*.joblib
+models/feature_columns.json
 models/training_report.json
 models/health_check_report.json
 

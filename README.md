@@ -1,49 +1,37 @@
 # Farmease
 
-Smart greenhouse prototype with:
-- desktop dashboard + live serial telemetry,
-- Telegram alerts/controls,
-- ML training and next-step prediction,
-- Arduino firmware for sensor/relay IO.
+Farmease is a smart greenhouse prototype that combines desktop monitoring, Telegram notifications, machine-learning-based prediction, and Arduino sensor or relay control in one repository.
 
-This repository was reorganized (Feb 2026) and keeps backward-compatible root launchers.
-
-## Project status
+## Overview
 
 Current maturity: **Prototype / Early MVP**
 
-Implemented:
-- End-to-end data loop (sensor read -> dashboard -> CSV logs -> model training -> prediction)
-- Telegram alerting and command controls
-- Baseline training reports and model artifact persistence
-- CI syntax + unit test checks
-- Expanded ML pipeline/unit coverage (data prep, supervised shaping, split/gate utilities)
-- Dashboard integration coverage for serial line processing and Telegram command dispatch
-- Stability-aware model selection using walk-forward mean/std consistency
-- Operations scripts/runbook for dashboard startup and retraining workflow
-- Automated retraining workflow with generated health-check reports
+Included today:
+- Desktop dashboard with live serial telemetry processing
+- Telegram alerting and bot command controls
+- Model training and next-step prediction workflows
+- Arduino firmware for greenhouse sensor and relay IO
+- Optional local cloud ingest and web frontend demo
+- Unit tests and CI checks for core Python paths
 
-Still pending for production readiness:
-- Hardware-in-the-loop end-to-end tests (live serial device + dashboard UI + Telegram command loop)
-- Rollout of scheduled retraining in deployment environments (task registration + threshold tuning)
-- Installer/service packaging for non-developer environments
+This repository was reorganized in Feb 2026 and keeps backward-compatible root launchers for the main Python entry points.
 
-## Structure
+## Repository Layout
 
 - `app/` - desktop dashboard application logic
-- `integrations/` - external integrations (Telegram notifier)
-- `ml/` - machine learning pipeline, training, and inference scripts
-- `firmware/` - Arduino/IoT firmware
-- `cloud_backend/` - local demo ingest API for optional cloud sync
-- `scripts/` - operational PowerShell/Python automation scripts
-- `docs/` - setup and usage documentation
-- `data/` - logged sensor/training CSVs (generated locally)
-- `models/` - trained model artifacts and reports
-- `tests/` - unit tests
+- `integrations/` - Telegram integration and notifier code
+- `ml/` - machine learning pipeline, training, and inference modules
+- `firmware/` - Arduino / IoT firmware
+- `cloud_backend/` - local demo ingest API and web frontend server
+- `scripts/` - PowerShell and Python helper scripts
+- `docs/` - setup and operations documentation
+- `tests/` - unit and integration-style test coverage
+- `data/` - generated local runtime data, ignored by git
+- `models/` - generated model artifacts, ignored by git except committed source files
 
-## Quick start
+## Quick Start
 
-From project root (PowerShell):
+From project root in PowerShell:
 
 ```powershell
 python -m venv .venv
@@ -51,7 +39,7 @@ python -m venv .venv
 pip install -r requirements-ml.txt
 ```
 
-Run apps/scripts:
+Run the main local workflows:
 
 ```powershell
 python dashboard.py
@@ -60,15 +48,15 @@ python predict_next.py
 .\scripts\run_web_frontend.ps1
 ```
 
-Cloud + web dashboard quick start (two terminals):
+## Optional Cloud Demo
 
-Terminal 1:
+Start the local ingest API in one terminal:
 
 ```powershell
 .\scripts\run_cloud_api.ps1
 ```
 
-Terminal 2:
+Start the web frontend in a second terminal:
 
 ```powershell
 $env:FARMEASE_CLOUD_ENDPOINT="http://127.0.0.1:8787/ingest"
@@ -76,80 +64,51 @@ $env:FARMEASE_CLOUD_API_KEY="demo-key"
 .\scripts\run_web_frontend.ps1
 ```
 
-Open: `http://127.0.0.1:8080/`
+Then open `http://127.0.0.1:8080/`.
 
-Telegram setup:
-- See `docs/TELEGRAM_SETUP.md`
+## Common Commands
 
-Operations runbook:
-- See `docs/OPERATIONS.md`
-
-Core documentation:
-- `docs/TELEGRAM_SETUP.md` (alerts and bot command controls)
-- `docs/OPERATIONS.md` (startup, retraining, validation)
-- `docs/CLOUD_SYNC_PREP.md` (worker env + sync flow)
-- `docs/CLOUD_BACKEND_SETUP.md` (local ingest API)
-- `docs/EVENT_EVIDENCE.md` (generated evidence snapshot)
-- `docs/HEALTH_CHECK.md` (generated retraining health report)
-
-Optional cloud-sync prep:
-- `docs/CLOUD_SYNC_PREP.md`
-- `docs/CLOUD_BACKEND_SETUP.md`
-- `.\scripts\run_cloud_sync.ps1`
-- `.\scripts\run_cloud_api.ps1`
-- `.\scripts\run_web_frontend.ps1`
-- `cloud_backend/api_server.py`
-- `cloud_backend/frontend_server.py`
-
-## Validation commands
-
-Local sanity checks:
+Validation:
 
 ```powershell
 python -m py_compile dashboard.py telegram_notifier.py
 python -m unittest discover -s tests -p "test_*.py"
 ```
 
-Generate event evidence from current logs/models:
+Generate evidence from the current local run data:
 
 ```powershell
 python scripts/generate_event_evidence.py
 ```
 
-Run full event rehearsal workflow:
+Run the end-to-end rehearsal script:
 
 ```powershell
 .\scripts\event_rehearsal.ps1
 ```
 
-Run retraining + health check workflow:
-
-```powershell
-.\scripts\run_retraining_healthcheck.ps1 -FailOnHealthIssue
-```
-
-Install a daily scheduled retraining task (Windows):
-
-```powershell
-.\scripts\install_retraining_schedule.ps1 -DailyAt "02:00" -FailOnHealthIssue
-```
-
-Run optional cloud sync worker (future path):
+Optional cloud sync worker:
 
 ```powershell
 .\scripts\run_cloud_sync.ps1
 ```
 
-Run optional local cloud ingest API:
+Optional local cloud ingest API:
 
 ```powershell
 .\scripts\run_cloud_api.ps1
 ```
 
-CI runs equivalent checks on each push/PR via:
-- `.github/workflows/ci.yml`
+## Documentation
 
-## Environment quick reference
+- `docs/TELEGRAM_SETUP.md` - Telegram alerts and bot command setup
+- `docs/OPERATIONS.md` - startup, manual retraining, and validation workflow
+- `docs/CLOUD_SYNC_PREP.md` - cloud sync worker configuration
+- `docs/CLOUD_BACKEND_SETUP.md` - local ingest API and frontend setup
+
+Generated local reports such as `docs/EVENT_EVIDENCE.md` and `docs/HEALTH_CHECK.md` are intentionally not committed.
+
+## Environment Notes
 
 The dashboard loads `.env` automatically if present.
 
@@ -162,17 +121,17 @@ Common optional keys:
 - `FARMEASE_CLOUD_SYNC`, `FARMEASE_CLOUD_ENDPOINT`, `FARMEASE_CLOUD_API_KEY`
 - `FARMEASE_CLOUD_TIMEOUT_SECONDS`, `FARMEASE_CLOUD_POLL_SECONDS`, `FARMEASE_CLOUD_BATCH_SIZE`, `FARMEASE_DEVICE_ID`
 
-## Data and artifact policy
+## What Stays Out Of Git
 
-Generated runtime logs are intentionally git-ignored:
-- `data/greenhouse_training_data.csv`
-- `data/event_timeline.csv`
-- `data/cloud_ingest.jsonl`
-- `data/.cloud_sync_state.json`
+The repository ignores machine-specific and generated outputs, including:
+- local `.env` files and secret directories
+- runtime CSV and JSONL data under `data/`
+- trained model artifacts under `models/`
+- generated operational reports under `docs/`
 
-ML artifacts are generated under `models/`.
+If you train models or run the dashboard locally, expect new artifacts to appear in `data/` and `models/` without being staged for commit.
 
-## Direct module paths
+## Direct Module Paths
 
 - Dashboard core: `app/dashboard.py`
 - Telegram notifier: `integrations/telegram_notifier.py`
@@ -181,8 +140,7 @@ ML artifacts are generated under `models/`.
 - Next-step prediction: `ml/predict_next.py`
 - Firmware sketch: `firmware/iotf/iotf.ino`
 
-## Near-term backlog (recommended)
+## Near-Term Backlog
 
 1. Add hardware-in-the-loop end-to-end tests for dashboard serial ingest and Telegram command handling.
-2. Automate retraining cadence (Task Scheduler/GitHub Actions schedule) with report checks.
-3. Package dashboard as a persistent service/installer for operator-friendly deployment.
+2. Package the dashboard as a persistent service or installer for operator-friendly deployment.

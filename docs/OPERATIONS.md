@@ -26,52 +26,18 @@ This script validates key paths and starts `dashboard.py` with the project venv 
 Standard retraining:
 
 ```powershell
-.\scripts\retrain_models.ps1
+python train_models.py
 ```
 
 Stricter retraining gate:
 
 ```powershell
-.\scripts\retrain_models.ps1 -StrictRelayQuality
+python train_models.py --strict-relay-quality
 ```
 
-The script runs:
+Manual retraining runs:
 1. `train_models.py` with configurable walk-forward splits
 2. `predict_next.py` smoke check to verify artifacts load and infer
-
-## Retraining + health check (automated workflow)
-
-Run the full automation flow manually:
-
-```powershell
-.\scripts\run_retraining_healthcheck.ps1 -FailOnHealthIssue
-```
-
-Optional flags:
-
-```powershell
-.\scripts\run_retraining_healthcheck.ps1 -StrictRelayQuality -WalkForwardSplits 8
-```
-
-This workflow runs:
-1. Model retraining
-2. Prediction smoke check
-3. Event evidence generation (`docs/EVENT_EVIDENCE.md`)
-4. Health check generation (`models/health_check_report.json`, `docs/HEALTH_CHECK.md`)
-
-Install a daily scheduled task on Windows:
-
-```powershell
-.\scripts\install_retraining_schedule.ps1 -DailyAt "02:00" -FailOnHealthIssue
-```
-
-Useful scheduled-task commands:
-
-```powershell
-Start-ScheduledTask -TaskName "FarmEase-RetrainingHealthcheck"
-Get-ScheduledTask -TaskName "FarmEase-RetrainingHealthcheck"
-Unregister-ScheduledTask -TaskName "FarmEase-RetrainingHealthcheck" -Confirm:$false
-```
 
 ## Validation checklist
 
